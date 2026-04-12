@@ -41,16 +41,16 @@ class ImageProcessor:
             self for method chaining.
         """
         margin_value = self._parse_margin(margin, self.image.size)
-        
+
         if margin_value > 0:
             width, height = self.image.size
-            
+
             # Calculate crop box (crop from all edges by margin_value)
             left = margin_value
             upper = margin_value
             right = width - margin_value
             lower = height - margin_value
-            
+
             # Ensure valid crop box
             if left < right and upper < lower:
                 self.image = self.image.crop((left, upper, right, lower))

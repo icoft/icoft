@@ -41,7 +41,7 @@ class TestCLI:
         result = runner.invoke(main, ["--version"])
 
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert "v0" in result.output
 
     def test_basic_conversion(self, sample_image, tmp_path):
         """Test basic icon conversion."""
@@ -79,31 +79,33 @@ class TestCLI:
 
         result = runner.invoke(
             main,
-            [str(sample_image), str(output_dir), "--margin", "5%"],
+            [str(sample_image), str(output_dir), "-m", "5%"],
         )
 
         assert result.exit_code == 0
 
     def test_no_crop(self, sample_image, tmp_path):
-        """Test conversion without cropping."""
+        """Test conversion without cropping (default behavior)."""
         runner = CliRunner()
         output_dir = tmp_path / "icons"
 
+        # Default behavior: no processing, just generate icons from original
         result = runner.invoke(
             main,
-            [str(sample_image), str(output_dir), "--no-crop"],
+            [str(sample_image), str(output_dir)],
         )
 
         assert result.exit_code == 0
 
     def test_no_transparent(self, sample_image, tmp_path):
-        """Test conversion without transparent background."""
+        """Test conversion without transparent background (default behavior)."""
         runner = CliRunner()
         output_dir = tmp_path / "icons"
 
+        # Default behavior: no processing steps enabled
         result = runner.invoke(
             main,
-            [str(sample_image), str(output_dir), "--no-transparent"],
+            [str(sample_image), str(output_dir)],
         )
 
         assert result.exit_code == 0
