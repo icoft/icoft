@@ -1,6 +1,7 @@
 """Icon generator module for Icoft."""
 
 import io
+import struct
 from pathlib import Path
 
 from PIL import Image
@@ -27,21 +28,31 @@ class IconGenerator:
 
     def generate_windows(self) -> None:
         """
-        Generate Windows .ico file with multiple resolutions.
+        Generate Windows .ico file with full resolution support.
 
-        Creates an .ico file containing icons at 16, 24, 32, 48, 64, 128, and 256 pixels.
+        Creates an .ico file containing icons at:
+        16, 20, 24, 32, 40, 48, 64, 256 pixels (Windows 10/11 compliant)
+        All sizes use 32-bit ARGB with PNG compression for 256x256.
         """
+        import io
+        import struct
+
         output_path = self.output_dir / "windows"
         output_path.mkdir(parents=True, exist_ok=True)
 
         ico_path = output_path / "app.ico"
 
-        sizes = [16, 24, 32, 48, 64, 128, 256]
-        icons = []
+        # Full Windows 10/11 specification sizes
+        # 16/20/24/32/40/48/64 for various DPI settings
+        # 256 for high-DPI displays and modern UI
+        sizes = [16, 20, 24, 32, 40, 48, 64, 256]
 
+        # Create PNG data for each size
+        png_data = []
         for size in sizes:
             resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
 
+            # Apply sharpening for small sizes
             if size < 64:
                 from PIL import ImageFilter
 
@@ -55,14 +66,64 @@ class IconGenerator:
                     ImageFilter.UnsharpMask(radius=1, percent=sharpness, threshold=3)
                 )
 
-            icons.append(resized)
+            # Save as PNG bytes
+            buffer = io.BytesIO()
+            resized.save(buffer, format="PNG")
+            png_data.append(buffer.getvalue())
 
-        icons[0].save(
-            ico_path,
-            format="ICO",
-            sizes=[(size, size) for size in sizes],
-            append_images=icons[1:],
-        )
+        # Generate ICO file manually (Pillow has bugs with multi-size ICO)
+        ico_data = self._create_ico_from_png(png_data, sizes)
+
+        # Save ICO file
+        with open(ico_path, "wb") as f:
+            f.write(ico_data)
+
+    def _create_ico_from_png(self, png_images: list[bytes], sizes: list[int]) -> bytes:
+        """
+        Create ICO file from PNG data.
+
+        Args:
+            png_images: List of PNG image data (bytes)
+            sizes: List of sizes corresponding to each PNG
+
+        Returns:
+            ICO file data (bytes)
+        """
+        # ICO header: reserved(2) + type(2) + count(2)
+        header = struct.pack("<HHH", 0, 1, len(png_images))
+
+        # Icon directory entries
+        icon_dir = b""
+        offset = 6 + 16 * len(png_images)  # Header + directory size
+
+        for png_data, size in zip(png_images, sizes):
+            png_size = len(png_data)
+
+            # ICO entry: width, height, colors, reserved, planes, bpp, size, offset
+            # width/height of 0 means 256
+            w = 0 if size == 256 else size
+            h = 0 if size == 256 else size
+
+            entry = struct.pack(
+                "<BBBBHHII",
+                w,
+                h,
+                0,
+                0,  # width, height, colors, reserved
+                1,
+                32,  # planes, bpp (32-bit)
+                png_size,  # size of PNG data
+                offset,  # offset to PNG data
+            )
+            icon_dir += entry
+            offset += png_size
+
+        # Combine all parts
+        ico_data = header + icon_dir
+        for png in png_images:
+            ico_data += png
+
+        return ico_data
 
     def generate_macos(self) -> None:
         """
