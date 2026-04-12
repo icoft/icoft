@@ -98,7 +98,7 @@ def main(
 
     # Handle --version flag
     if show_version:
-        console.print("[bold blue]icoft[/bold blue] [dim]v0.2.0-dev[/dim]")
+        console.print("[bold blue]icoft[/bold blue] [dim]v0.2.2-dev[/dim]")
         return
     # Show help if no arguments provided
     if input_file is None or output_dir is None:
