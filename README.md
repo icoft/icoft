@@ -210,6 +210,8 @@ icoft/
 
 - [ ] iOS icon optimization
 - [ ] Android adaptive icons
+- [ ] Full UWP/WinUI 3 support (14 sizes + 3 themes + tiles)
+- [ ] Advanced image processing (AI-based background removal)
 - [ ] CI/CD integration templates
 - [ ] GUI application (optional)
 
