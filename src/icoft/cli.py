@@ -1,16 +1,20 @@
 """Command-line interface for Icoft - Icon Forge.
 
 Examples:
-  # Basic usage - generate icons from original image
-  icoft logo.png icons/
+  # Generate full icon set
+  icoft source_file.png dest_dir/
 
-  # With processing steps
-  icoft -m 10% -t logo.png icons/
-  icoft -m 10% -B 15 logo.png icons/
+  # Crop and generate icons
+  icoft -m 10% source_file.png dest_dir/
 
-  # Single file output
-  icoft -s logo.png output.svg -o svg
-  icoft -m 10% logo.png output.png -o png
+  # Crop + background removal + icons
+  icoft -m 10% -t source_file.png dest_dir/
+
+  # Output single processed PNG
+  icoft -m 10% source_file.png output.png -o png
+
+  # Output single SVG (auto-vectorizes)
+  icoft source_file.png output.svg -o svg
 """
 
 from importlib.metadata import version
@@ -25,8 +29,8 @@ __version__ = version("icoft")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.argument("input_file", type=click.Path(exists=True), required=False)
-@click.argument("output_dir", type=click.Path(), required=False)
+@click.argument("source_file", type=click.Path(exists=True), required=False)
+@click.argument("dest_dir", type=click.Path(), required=False)
 @click.option(
     "-m",
     "--crop-margin",
@@ -92,8 +96,8 @@ __version__ = version("icoft")
 )
 @click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
-    input_file: str | None,
-    output_dir: str | None,
+    source_file: str | None,
+    dest_dir: str | None,
     crop_margin: str | None,
     do_transparent: bool,
     bg_threshold: int,
@@ -112,24 +116,24 @@ def main(
         return
 
     # Validate required arguments with clear error messages
-    if input_file is None and output_dir is None:
+    if source_file is None and dest_dir is None:
         console.print("[red]Error:[/] Missing required arguments")
-        console.print("  [bold]INPUT_FILE[/bold] and [bold]OUTPUT_DIR[/bold] are required.")
+        console.print("  [bold]SOURCE_FILE[/bold] and [bold]DEST_DIR[/bold] are required.")
         console.print("\n[bold blue]Examples:[/]")
         console.print("  icoft logo.png icons/              # Generate icons from original")
         console.print("  icoft -m 10% logo.png icons/       # Crop + generate icons")
-        console.print("  icoft -s logo.png out.svg -o svg   # Vectorize to SVG")
+        console.print("  icoft logo.png out.svg -o svg      # Output single SVG")
         console.print("\nUse [bold]-h[/bold] or [bold]--help[/bold] for more options.")
         raise SystemExit(1)
 
-    if input_file is None:
-        console.print("[red]Error:[/] Missing [bold]INPUT_FILE[/bold] argument")
+    if source_file is None:
+        console.print("[red]Error:[/] Missing [bold]SOURCE_FILE[/bold] argument")
         console.print("  Please specify the input image file.")
         console.print("\n[bold blue]Example:[/] icoft logo.png icons/")
         raise SystemExit(1)
 
-    if output_dir is None:
-        console.print("[red]Error:[/] Missing [bold]OUTPUT_DIR[/bold] argument")
+    if dest_dir is None:
+        console.print("[red]Error:[/] Missing [bold]DEST_DIR[/bold] argument")
         console.print("  Please specify the output directory or file path.")
         console.print("\n[bold blue]Examples:[/]")
         console.print("  icoft logo.png [bold]icons/[/bold]           # Output to directory")
@@ -138,15 +142,15 @@ def main(
 
     from pathlib import Path
 
-    input_path = Path(input_file)
-    output_path = Path(output_dir)
+    input_path = Path(source_file)
+    output_path = Path(dest_dir)
 
     # Smart 判断：是单文件输出还是目录输出？
     # 规则：
-    # 1. 如果 output 以 / 结尾 → 目录
-    # 2. 如果 output 有图片扩展名 (.png, .jpg, .svg) → 文件
+    # 1. 如果 dest_dir 以 / 结尾 → 目录
+    # 2. 如果 dest_dir 有图片扩展名 (.png, .jpg, .svg) → 文件
     # 3. 否则 → 目录
-    is_single_file = output_dir.endswith("/") is False and output_path.suffix.lower() in [
+    is_single_file = dest_dir.endswith("/") is False and output_path.suffix.lower() in [
         ".png",
         ".jpg",
         ".jpeg",

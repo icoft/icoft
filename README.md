@@ -7,22 +7,16 @@
 [![Version](https://img.shields.io/pypi/v/icoft.svg)](https://pypi.org/project/icoft/)
 [![GitHub License](https://img.shields.io/github/license/hexin/icoft)](https://github.com/hexin/icoft/blob/main/LICENSE)
 
-Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into icons for all platforms (Windows, macOS, Linux, Web).
+Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into icons for all platforms (Windows, macOS, Linux, Web), or performs image processing tasks like cropping, background removal, and vectorization.
 
 ## Features
 
-- **Step-by-Step Processing**: Unix-style composable parameters for precise control
-- **Automatic Border Cropping**: Removes solid-color borders
-- **Watermark/Noise Removal**: Extracts subject from background
-- **Background to Transparent**: Converts single-color backgrounds to transparent
-- **Vectorization**: PNG to SVG conversion with vtracer
-- **Multi-Platform Support**:
-  - **Windows**: `.ico` file (16, 24, 32, 48, 64, 128, 256 px)
-  - **macOS**: `.icns` file + `icon_512x512.png`
-  - **Linux**: PNG icon set following hicolor theme + SVG
-  - **Web**: `favicon.ico`, PWA icons, `apple-touch-icon.png`
-- **CLI Friendly**: Simple command-line interface with Rich output
-- **Configurable**: Customizable thresholds, margins, and platform selection
+- **Icon Generation**: Complete icon sets for Windows, macOS, Linux, and Web
+- **Image Cropping**: Automatic border removal with customizable margins
+- **Background Removal**: Convert solid-color backgrounds to transparent
+- **Vectorization**: High-quality PNG to SVG conversion
+- **Flexible Output**: Generate full icon sets or single processed images
+- **CLI Friendly**: Unix-style composable parameters with Rich terminal output
 
 ## Installation
 
@@ -41,41 +35,42 @@ pip install -e .
 ## Quick Start
 
 ```bash
-# Basic usage (default: generate icons from original image)
-icoft logo.png icons/
+# Generate full icon set (default)
+icoft source_file.png dest_dir/
 
-# With crop margin
-icoft -m 10% logo.png icons/        # Crop + generate icons
+# Crop and generate icons
+icoft -m 10% source_file.png dest_dir/
 
-# With custom parameters
-icoft -m 10% -B 15 logo.png out/
+# Background removal + crop + icons
+icoft -m 10% -t source_file.png dest_dir/
 
-# Combined steps + icons (default)
-icoft -m 10% -t logo.png icons/
+# Output single processed PNG
+icoft -m 10% source_file.png output.png -o png
 
-# Specific step output (single file)
-icoft -m 10% logo.png out.png -o png
-icoft -t logo.png out.png -o png
-icoft -s logo.png out.svg -o svg
+# Output single SVG (auto-vectorizes)
+icoft source_file.png output.svg -o svg
+
+# Crop + background removal + SVG
+icoft -m 10% -t source_file.png output.svg -o svg
 ```
 
 ## Usage Examples
 
-### Example 1: Convert AI Logo
+### Example 1: Generate Full Icon Set
 
 ```bash
-# Generate logo from Midjourney/豆包
-icoft my_logo.png output/
+# Generate icons for all platforms
+icoft source_file.png dest_dir/
 ```
 
 Output structure:
 
 ```
-output/
+dest_dir/
 ├── windows/
 │   └── app.ico
 ├── macos/
-│   ├── app.icns (or icon_1024x1024.png)
+│   ├── app.icns
 │   └── icon_512x512.png
 ├── linux/
 │   └── hicolor/
@@ -91,19 +86,32 @@ output/
     └── manifest.json
 ```
 
-### Example 2: Python Package Integration
+### Example 2: Crop and Remove Background
 
 ```bash
-# In pyproject.toml
-[tool.icoft]
-source = "logo.png"
-output = "package/icons/"
-
-# Build icons
-icoft --config=pyproject.toml
+# For images with solid-color borders and backgrounds
+icoft -m 10% -t source_file.png dest_dir/
 ```
 
-### Example 3: CI/CD Pipeline
+This performs:
+1. Crop borders with 10% margin
+2. Make background transparent
+3. Generate full icon set
+
+### Example 3: Output Single Processed Image
+
+```bash
+# Crop and save as PNG
+icoft -m 10% source_file.png cropped.png -o png
+
+# Background removal and save as PNG
+icoft -t source_file.png transparent.png -o png
+
+# Crop + background removal + vectorization to SVG
+icoft -m 10% -t source_file.png output.svg -o svg
+```
+
+### Example 4: CI/CD Pipeline
 
 ```yaml
 # .github/workflows/release.yml
@@ -120,24 +128,17 @@ Usage: icoft [OPTIONS] INPUT_FILE OUTPUT_DIR
 
 Icoft - From Single Image to Full-Platform App Icons.
 
-Processing Steps (can be combined):
-  -m, --crop-margin       Crop borders with margin
-  -t, --transparent       Make background transparent
-  -s, --svg               Vectorize to SVG
-
-Output Options:
-  -o, --output FORMAT     Output format: icon (default), png, svg
-
-Parameter Options:
-  -m, --crop-margin=5%    Margin for cropping (e.g., 5%, 10px)
-  -B, --bg-threshold      Background threshold (0-255, default: 10)
-  -S, --svg-speckle       Filter SVG noise (1-100, default: 10)
-  -P, --svg-precision     SVG color precision (1-16, default: 6)
-
 Options:
-  -p, --platforms TEXT    Comma-separated platforms (default: all)
-  -V, --version           Show version
-  -h, --help              Show help message
+  -m, --crop-margin        Margin for cropping (e.g., 5%, 10px)
+  -t, --transparent        Make background transparent
+  -B, --bg-threshold=10    Background threshold (0-255)
+  -s, --svg                Vectorize to SVG
+  -S, --svg-speckle=10     Filter SVG noise (1-100)
+  -P, --svg-precision=6    SVG color precision (1-16)
+  -o, --output=icon        Output format: icon, png, svg
+  -p, --platforms=all      Comma-separated platforms
+  -V, --version            Show version
+  -h, --help               Show help message
 ```
 
 ## Development
