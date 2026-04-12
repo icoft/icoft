@@ -40,19 +40,20 @@ pip install -e .
 ## Quick Start
 
 ```bash
-# Basic usage (Unix-style: options first)
+# Basic usage (default: generate icons from original image)
 icoft logo.png icons/
 
 # With step parameters
-icoft -cuts logo.png out/      # Crop → Cutout → Transparent → Vectorize to SVG
-icoft -cuti logo.png out/      # Crop → Cutout → Transparent → Generate icons
+icoft -cuts logo.png out/           # Crop → Cutout → Transparent → Vectorize to SVG
+icoft -cuts --output=icon logo.png out/  # + Generate icons
 
 # With custom parameters
 icoft -cu -m 10% -T 40 -B 15 logo.png out/
 
 # Specific step output
-icoft -c logo.png out/         # Just crop
-icoft -s logo.png out/         # Just vectorize to SVG
+icoft -c logo.png out/              # Just crop (single PNG)
+icoft -s logo.png out/              # Just vectorize to SVG
+icoft -t logo.png out/ --output=png # Just transparent (single PNG)
 ```
 
 ## Usage Examples
@@ -117,10 +118,14 @@ Icoft - From AI Logo to Full-Platform App Icons.
 
 Processing Steps (can be combined):
   -c, --crop              Crop borders
-  -u, --cutout            Smart cutout
+  -u, --cutout            Smart cutout (watermark removal)
   -t, --transparent       Make background transparent
   -s, --svg               Vectorize to SVG
-  -i, --icon              Generate icons (default)
+
+Output Options:
+  --output=icon           Generate platform icons (default)
+  --output=png            Save last processing step as PNG
+  --output=svg            Save last processing step as SVG
 
 Parameter Options:
   -m, --crop-margin=5%    Margin for cropping

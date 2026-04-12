@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI parameter order to follow Unix conventions: `icoft [OPTIONS] INPUT_FILE OUTPUT_DIR`
 - Default behavior: no arguments shows help message
 
+## [0.2.1-dev] - 2026-04-12
+
+### Changed
+- Replaced `-i, --icon` flag with `--output` parameter for better output control
+- Default output behavior: `--output=icon` (generates full platform icon set)
+- Added `--output=png` option to save processing result as single PNG
+- Added `--output=svg` option to save processing result as single SVG
+- Updated CLI help and documentation with new output parameter design
+
+### Removed
+- `-i, --icon` parameter (replaced by `--output=icon`)
+
 ## [0.2.0] - 2026-04-12
 
 ### Added
@@ -67,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite (23 tests)
 - Documentation: README.md, project status, design philosophy
 
-[Unreleased]: https://github.com/hexin/icoft/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hexin/icoft/compare/v0.2.1-dev...HEAD
+[0.2.1-dev]: https://github.com/hexin/icoft/compare/v0.2.0...v0.2.1-dev
 [0.2.0]: https://github.com/hexin/icoft/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hexin/icoft/releases/tag/v0.1.0
