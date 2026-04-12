@@ -17,19 +17,11 @@ console = Console()
 )
 @click.option(
     "-c",
-    "--crop",
-    "do_crop",
-    is_flag=True,
-    default=None,
-    help="Crop borders (default: enabled)",
-)
-@click.option(
-    "-m",
     "--crop-margin",
     "crop_margin",
     type=str,
-    default="5%",
-    help="Margin for cropping (default: 5%)",
+    default=None,
+    help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
     "-u",
@@ -114,8 +106,7 @@ def main(
     input_file: str | None,
     output_dir: str | None,
     preset: str | None,
-    do_crop: bool | None,
-    crop_margin: str,
+    crop_margin: str | None,
     do_cutout: bool | None,
     cutout_threshold: int,
     do_transparent: bool | None,
@@ -132,7 +123,6 @@ def main(
 
     \b
     Processing Steps (can be combined):
-      -c, --crop              Crop borders
       -u, --cutout            Smart cutout
       -t, --transparent       Make background transparent
       -s, --svg               Vectorize to SVG
@@ -140,11 +130,11 @@ def main(
 
     \b
     Parameter Options:
-      -m, --crop-margin=5%    Margin for cropping
-      -T, --cutout-threshold  Cutout sensitivity
-      -B, --bg-threshold      Background threshold
-      -S, --svg-speckle       Filter SVG noise
-      -P, --svg-precision     SVG color precision
+      -c, --crop-margin=5%    Margin for cropping (required to enable)
+      -T, --cutout-threshold  Cutout sensitivity (default: 30)
+      -B, --bg-threshold      Background threshold (default: 10)
+      -S, --svg-speckle       Filter SVG noise (default: 10)
+      -P, --svg-precision     SVG color precision (default: 6)
 
     \b
     Options:
@@ -166,16 +156,20 @@ def main(
       icoft logo.png icons/
 
       # Combined short options (Unix-style: options first)
-      icoft -cuts logo.png out/    # Process to SVG
-      icoft -cuti logo.png out/    # Process to icons
+      icoft -utsi logo.png out/    # Cutout + transparent + svg
+      icoft -uti logo.png out/     # Cutout + transparent + icons
+
+      # With crop margin (required to enable cropping)
+      icoft -c 5% logo.png out/    # Crop with 5% margin
+      icoft -c 10% -uti logo.png out/  # Crop + cutout + transparent + icons
 
       # Custom parameters
-      icoft -cu -m 10% -T 40 -B 15 logo.png out/
+      icoft -c 10% -T 40 -B 15 logo.png out/
 
       # Specific step output
-      icoft -c logo.png out/       # Just crop
-      icoft -cu logo.png out/      # Crop + cutout
-      icoft -cut logo.png out/     # Crop + cutout + transparent
+      icoft -c 5% logo.png out/    # Just crop
+      icoft -u logo.png out/       # Just cutout
+      icoft -t logo.png out/       # Just transparent
       icoft -s logo.png out/       # Just vectorize
     """
 
@@ -227,7 +221,7 @@ def main(
     # Check if any step flag was explicitly provided (needed for default logic)
     any_step_flagged = any(
         [
-            do_crop is not None,
+            crop_margin is not None,
             do_cutout is not None,
             do_transparent is not None,
             do_svg,
@@ -238,25 +232,29 @@ def main(
     # Priority 1: Preset configuration
     if use_preset:
         if preset == "minimal":
+            crop_margin = "5%"  # Enable crop with default margin
             crop_enabled = True
             cutout_enabled = False
             transparent_enabled = False
             icon_enabled = False
             do_svg = False
         elif preset == "standard":
+            crop_margin = "5%"  # Enable crop with default margin
             crop_enabled = True
             cutout_enabled = True
             transparent_enabled = True
             icon_enabled = True
             do_svg = False
         elif preset == "full":
+            crop_margin = "5%"  # Enable crop with default margin
             crop_enabled = True
             cutout_enabled = True
             transparent_enabled = True
             icon_enabled = False
             do_svg = True
         else:  # icon preset
-            crop_enabled = True
+            crop_margin = None  # No crop
+            crop_enabled = False
             cutout_enabled = True
             transparent_enabled = True
             icon_enabled = True
@@ -267,7 +265,7 @@ def main(
         if not any_step_flagged:
             # No flags - default: NO processing, only generate icons from original image
             # This follows the Unix philosophy: "do nothing by default, let users opt-in"
-            crop_enabled = False
+            crop_margin = None
             cutout_enabled = False
             transparent_enabled = False
             do_svg = False
@@ -278,7 +276,7 @@ def main(
             # - If -i is specified: generate icons
             # - If -s is specified (and no -i): output SVG
             # - Otherwise: output the result of the last preprocessing step
-            crop_enabled = do_crop if do_crop is not None else False
+            crop_margin = crop_margin  # Keep as-is (None or value)
             cutout_enabled = do_cutout if do_cutout is not None else False
             transparent_enabled = do_transparent if do_transparent is not None else False
             do_svg = do_svg
@@ -287,9 +285,8 @@ def main(
             icon_enabled = do_icon if do_icon is not None else False
 
         # Priority 4: Auto-enable steps based on parameter flags
-        # If user specifies a non-default parameter, enable that step
-        if crop_margin != "5%":
-            crop_enabled = True
+        # If user specifies a parameter, enable that step
+        crop_enabled = crop_margin is not None
         if cutout_threshold != 30:
             cutout_enabled = True
         if bg_threshold != 10:
