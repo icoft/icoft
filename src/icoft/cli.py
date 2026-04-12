@@ -1,9 +1,13 @@
 """Command-line interface for Icoft - Icon Forge."""
 
 import click
+from importlib.metadata import version
 from rich.console import Console
 
 console = Console()
+
+# Get version from package metadata
+__version__ = version("icoft")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -98,7 +102,7 @@ def main(
 
     # Handle --version flag
     if show_version:
-        console.print("[bold blue]icoft[/bold blue] [dim]v0.2.2-dev[/dim]")
+        console.print(f"[bold blue]icoft[/bold blue] [dim]v{__version__}[/dim]")
         return
     # Show help if no arguments provided
     if input_file is None or output_dir is None:
