@@ -48,7 +48,7 @@ icoft logo.png icons/
 icoft -m 10% logo.png icons/        # Crop + generate icons
 
 # With custom parameters
-icoft -m 10% -T 40 -B 15 logo.png out/
+icoft -m 10% -B 15 logo.png out/
 
 # Combined steps + icons (default)
 icoft -m 10% -t logo.png icons/
@@ -122,7 +122,6 @@ Icoft - From Single Image to Full-Platform App Icons.
 
 Processing Steps (can be combined):
   -m, --crop-margin       Crop borders with margin
-  -T, --noise-threshold   Remove watermarks/noise (smart cutout)
   -t, --transparent       Make background transparent
   -s, --svg               Vectorize to SVG
 
@@ -131,7 +130,6 @@ Output Options:
 
 Parameter Options:
   -m, --crop-margin=5%    Margin for cropping (e.g., 5%, 10px)
-  -T, --noise-threshold   Watermark removal sensitivity (0-255, default: 30)
   -B, --bg-threshold      Background threshold (0-255, default: 10)
   -S, --svg-speckle       Filter SVG noise (1-100, default: 10)
   -P, --svg-precision     SVG color precision (1-16, default: 6)

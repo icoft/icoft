@@ -2,11 +2,8 @@
 
 from pathlib import Path
 
-import cv2
 import numpy as np
 from PIL import Image
-
-from icoft.core.watermark_advanced import HybridWatermarkRemover
 
 
 class ImageProcessor:
@@ -90,50 +87,6 @@ class ImageProcessor:
                 )
                 alpha[is_background] = 0
                 img_array[:, :, 3] = alpha
-
-        self.image = Image.fromarray(img_array)
-        return self
-
-    def smart_cutout(self, threshold: int = 30) -> "ImageProcessor":
-        """
-        Apply smart cutout algorithm to extract subject from background.
-
-        This uses the HybridWatermarkRemover algorithm to:
-        1. Detect subject edges using Canny edge detection
-        2. Create adaptive threshold based on background brightness
-        3. Remove edge artifacts (2px erosion for dark backgrounds)
-        4. Generate smooth alpha mask with Gaussian blur
-
-        Args:
-            threshold: Base threshold for detection (default: 30).
-                      Higher values preserve more details.
-
-        Returns:
-            self for method chaining.
-        """
-        remover = HybridWatermarkRemover(self.image_path)
-        self.image = remover.remove(threshold=threshold)
-        return self
-
-    def denoise(self, strength: int = 5) -> "ImageProcessor":
-        """
-        Apply noise reduction to the image.
-
-        Args:
-            strength: Denoising strength (higher = more smoothing).
-
-        Returns:
-            self for method chaining.
-        """
-        img_array = np.array(self.image)
-
-        if img_array.shape[2] == 4:
-            rgb = img_array[:, :, :3]
-            alpha = img_array[:, :, 3]
-            rgb_denoised = cv2.fastNlMeansDenoisingColored(rgb, None, strength, strength, 7, 21)
-            img_array = np.dstack([rgb_denoised, alpha])
-        else:
-            img_array = cv2.fastNlMeansDenoisingColored(img_array, None, strength, strength, 7, 21)
 
         self.image = Image.fromarray(img_array)
         return self
