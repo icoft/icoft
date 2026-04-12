@@ -85,13 +85,6 @@ console = Console()
     default="all",
     help="Comma-separated list of platforms (default: all)",
 )
-@click.option(
-    "-I",
-    "--output-intermediate",
-    "output_intermediate",
-    is_flag=True,
-    help="Save intermediate processing steps",
-)
 @click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
     input_file: str | None,
@@ -106,7 +99,6 @@ def main(
     svg_precision: int,
     output_format: str,
     platforms: str,
-    output_intermediate: bool,
     show_version: bool,
 ) -> None:
     """Icoft - From AI Logo to Full-Platform App Icons.
@@ -135,7 +127,6 @@ def main(
     \b
     Options:
       -p, --platforms TEXT    Comma-separated platforms (default: all)
-      -I, --output-intermediate  Save intermediate steps
       -V, --version           Show version
       -h, --help              Show help message
 
@@ -306,11 +297,6 @@ def main(
             console.print("[green]✓[/green] Borders cropped")
             step_num += 1
 
-            if output_intermediate:
-                last_output_path = output_path / "intermediate" / "01_cropped.png"
-                processor.save(last_output_path)
-                console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
-
             if last_step == "crop":
                 last_output_path = output_path if is_single_file else output_path / "01_cropped.png"
                 processor.save(last_output_path)
@@ -326,22 +312,12 @@ def main(
             console.print("[green]✓[/green] Watermarks/noise removed")
             step_num += 1
 
-            if output_intermediate:
-                last_output_path = output_path / "intermediate" / "02_denoised.png"
-                processor.save(last_output_path)
-                console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
-
         # Step 3: Make background transparent
         if transparent_enabled:
             console.print(f"[yellow]Step {step_num}:[/] Converting background to transparent...")
             processor.make_background_transparent(tolerance=bg_threshold)
             console.print("[green]✓[/green] Background made transparent")
             step_num += 1
-
-            if output_intermediate:
-                last_output_path = output_path / "intermediate" / "03_transparent.png"
-                processor.save(last_output_path)
-                console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
 
             if last_step == "transparent":
                 last_output_path = (
