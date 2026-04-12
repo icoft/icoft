@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Replaced `-i, --icon` flag with `--output` parameter for better output control
+- Simplified CLI parameters: removed `-c/--crop` and `-u/--cutout`
+- Renamed `-T/--cutout-threshold` to `-T/--noise-threshold` (watermark/noise removal)
 - Default output behavior: `--output=icon` (generates full platform icon set)
 - Added `--output=png` option to save processing result as single PNG
 - Added `--output=svg` option to save processing result as single SVG
@@ -22,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `-i, --icon` parameter (replaced by `--output=icon`)
+- `-c, --crop` parameter (use `-m/--crop-margin` with explicit value)
+- `-u, --cutout` parameter (functionality merged into noise removal workflow)
+
+### Fixed
+- Default behavior now correctly generates icons when no parameters specified
+- Parameter logic simplified: configuration parameters auto-enable corresponding steps
 
 ## [0.2.0] - 2026-04-12
 

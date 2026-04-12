@@ -43,17 +43,19 @@ pip install -e .
 # Basic usage (default: generate icons from original image)
 icoft logo.png icons/
 
-# With step parameters
-icoft -cuts logo.png out/           # Crop → Cutout → Transparent → Vectorize to SVG
-icoft -cuts --output=icon logo.png out/  # + Generate icons
+# With crop margin
+icoft -m 10% logo.png icons/        # Crop + generate icons
 
 # With custom parameters
-icoft -cu -m 10% -T 40 -B 15 logo.png out/
+icoft -m 10% -T 40 -B 15 logo.png out/
 
-# Specific step output
-icoft -c logo.png out/              # Just crop (single PNG)
-icoft -s logo.png out/              # Just vectorize to SVG
-icoft -t logo.png out/ --output=png # Just transparent (single PNG)
+# Combined steps + icons (default)
+icoft -m 10% -t logo.png icons/
+
+# Specific step output (single file)
+icoft -m 10% logo.png out.png --output=png
+icoft -t logo.png out.png --output=png
+icoft -s logo.png out.svg --output=svg
 ```
 
 ## Usage Examples
@@ -117,8 +119,8 @@ Usage: icoft [OPTIONS] INPUT_FILE OUTPUT_DIR
 Icoft - From AI Logo to Full-Platform App Icons.
 
 Processing Steps (can be combined):
-  -c, --crop              Crop borders
-  -u, --cutout            Smart cutout (watermark removal)
+  -m, --crop-margin       Crop borders with margin
+  -T, --noise-threshold   Remove watermarks/noise
   -t, --transparent       Make background transparent
   -s, --svg               Vectorize to SVG
 
@@ -129,14 +131,14 @@ Output Options:
 
 Parameter Options:
   -m, --crop-margin=5%    Margin for cropping
-  -T, --cutout-threshold  Cutout sensitivity (0-255, default: 30)
-  -B, --bg-threshold      Background threshold (0-255, default: 10)
+  -T, --noise-threshold   Watermark removal sensitivity (default: 30)
+  -B, --bg-threshold      Background threshold (default: 10)
   -S, --svg-speckle       Filter SVG noise (default: 10)
   -P, --svg-precision     SVG color precision (default: 6)
 
 Presets:
   --preset=minimal        Only crop
-  --preset=standard       Crop + cutout + transparent
+  --preset=standard       Crop + noise removal + transparent
   --preset=full           All steps + vectorization
   --preset=icon           Generate icons (default)
 
