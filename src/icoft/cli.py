@@ -196,14 +196,44 @@ def main(
 
     input_path = Path(input_file)
     output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Smart 判断：是单文件输出还是目录输出？
+    # 规则：
+    # 1. 如果 output 以 / 结尾 → 目录
+    # 2. 如果 output 有图片扩展名 (.png, .jpg, .svg) → 文件
+    # 3. 否则 → 目录
+    is_single_file = output_dir.endswith("/") is False and output_path.suffix.lower() in [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".svg",
+        ".ico",
+        ".icns",
+    ]
+
+    # 创建输出目录（单文件输出时创建父目录）
+    if is_single_file:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        output_path.mkdir(parents=True, exist_ok=True)
 
     console.print("[bold blue]Icoft - Icon Forge[/bold blue]")
     console.print(f"Processing: {input_path}")
-    console.print(f"Output: {output_path}\n")
+    console.print(f"Output: {output_path} ({'single file' if is_single_file else 'directory'})\n")
 
     # Determine which steps to execute
     use_preset = preset is not None
+
+    # Check if any step flag was explicitly provided (needed for default logic)
+    any_step_flagged = any(
+        [
+            do_crop is not None,
+            do_cutout is not None,
+            do_transparent is not None,
+            do_svg,
+            do_icon is not None,
+        ]
+    )
 
     # Priority 1: Preset configuration
     if use_preset:
@@ -234,22 +264,12 @@ def main(
 
     # Priority 3: Explicit step flags or smart defaults
     else:
-        # Check if any step flag was explicitly provided
-        any_step_flagged = any(
-            [
-                do_crop is not None,
-                do_cutout is not None,
-                do_transparent is not None,
-                do_svg,
-                do_icon is not None,
-            ]
-        )
-
         if not any_step_flagged:
-            # No flags - default: full workflow with icon output
-            crop_enabled = True
-            cutout_enabled = True
-            transparent_enabled = True
+            # No flags - default: NO processing, only generate icons from original image
+            # This follows the Unix philosophy: "do nothing by default, let users opt-in"
+            crop_enabled = False
+            cutout_enabled = False
+            transparent_enabled = False
             do_svg = False
             icon_enabled = True
         else:
@@ -311,7 +331,7 @@ def main(
 
             # Save final output if this is the last step
             if last_step == "crop":
-                last_output_path = output_path / "01_cropped.png"
+                last_output_path = output_path if is_single_file else output_path / "01_cropped.png"
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Cropped image saved to: {last_output_path}"
@@ -332,7 +352,7 @@ def main(
 
             # Save final output if this is the last step
             if last_step == "cutout":
-                last_output_path = output_path / "02_cutout.png"
+                last_output_path = output_path if is_single_file else output_path / "02_cutout.png"
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Cutout image saved to: {last_output_path}"
@@ -353,7 +373,9 @@ def main(
 
             # Save final output if this is the last step
             if last_step == "transparent":
-                last_output_path = output_path / "03_transparent.png"
+                last_output_path = (
+                    output_path if is_single_file else output_path / "03_transparent.png"
+                )
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Transparent PNG saved to: {last_output_path}"
@@ -382,7 +404,10 @@ def main(
                     splice_threshold=45,
                 )
 
-                last_output_path = output_path / "04_vectorized.svg"
+                if is_single_file:
+                    last_output_path = output_path
+                else:
+                    last_output_path = output_path / "04_vectorized.svg"
                 last_output_path.parent.mkdir(parents=True, exist_ok=True)
                 last_output_path.write_text(svg_result, encoding="utf-8")
                 console.print("[green]✓[/green] Vectorization complete")
