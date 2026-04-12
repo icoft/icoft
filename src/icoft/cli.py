@@ -88,12 +88,11 @@ console = Console()
     help="Color precision for SVG (default: 6)",
 )
 @click.option(
-    "-i",
-    "--icon",
-    "do_icon",
-    is_flag=True,
-    default=None,
-    help="Generate platform icons (default)",
+    "--output",
+    "output_format",
+    type=click.Choice(["png", "svg", "icon"]),
+    default="icon",
+    help="Output format (default: icon)",
 )
 @click.option(
     "-p",
@@ -123,7 +122,7 @@ def main(
     do_svg: bool,
     svg_speckle: int,
     svg_precision: int,
-    do_icon: bool | None,
+    output_format: str,
     platforms: str,
     output_intermediate: bool,
     show_version: bool,
@@ -132,15 +131,20 @@ def main(
 
     \b
     Processing Steps (can be combined):
-      -c, --crop              Crop borders (default 5% margin)
-      -u, --cutout            Smart cutout
+      -c, --crop              Crop borders
+      -u, --cutout            Smart cutout (watermark removal)
       -t, --transparent       Make background transparent
       -s, --svg               Vectorize to SVG
-      -i, --icon              Generate icons
+
+    \b
+    Output Options:
+      --output=icon           Generate platform icons (default)
+      --output=png            Save last processing step as PNG
+      --output=svg            Save last processing step as SVG
 
     \b
     Parameter Options:
-      -m, --crop-margin=5%    Margin for cropping (overrides -c)
+      -m, --crop-margin=5%    Margin for cropping
       -T, --cutout-threshold  Cutout sensitivity (default: 30)
       -B, --bg-threshold      Background threshold (default: 10)
       -S, --svg-speckle       Filter SVG noise (default: 10)
@@ -166,35 +170,27 @@ def main(
       icoft logo.png icons/
 
       # Combined short options (Unix-style: options first)
-      icoft -utsi logo.png out/    # Cutout + transparent + svg
-      icoft -utsi logo.png out/ -i # Cutout + transparent + svg + icons
+      icoft -uts logo.png out/     # Cutout + transparent + svg
+      icoft -uts --output=icon logo.png out/  # + icons
 
-      # With crop (default 5% margin)
-      icoft -c logo.png out/       # Just crop
-      icoft -ci logo.png out/      # Crop + icons
-
-      # With custom crop margin
+      # With crop margin
       icoft -m 10% logo.png out/   # Crop with 10% margin
-      icoft -m 10% -i logo.png out/# Crop + icons
+      icoft -m 10% --output=icon logo.png out/  # + icons
 
       # Custom parameters
-      icoft -c -T 40 -B 15 logo.png out/
       icoft -m 10% -T 40 -B 15 logo.png out/
 
       # Specific step output
-      icoft -c logo.png out/       # Just crop (single file)
-      icoft -u logo.png out/       # Just cutout (single file)
-      icoft -t logo.png out/       # Just transparent (single file)
+      icoft -c logo.png out/       # Just crop (single PNG)
+      icoft -u logo.png out/       # Just cutout (single PNG)
+      icoft -t logo.png out/       # Just transparent (single PNG)
       icoft -s logo.png out/       # Just vectorize (single SVG)
-      icoft -cuts logo.png out/    # All steps to SVG (single file)
-      icoft -cutsi logo.png out/   # All steps + icons (multi-platform)
+      icoft -cuts logo.png out/    # All steps (single SVG)
+      icoft -cuts --output=icon logo.png out/  # All steps + icons
     """
 
     # Handle --version flag
     if show_version:
-        from rich.console import Console
-
-        console = Console()
         console.print("[bold blue]icoft[/bold blue] [dim]v0.2.0-dev[/dim]")
         return
     # Show help if no arguments provided
@@ -243,7 +239,6 @@ def main(
             do_cutout is not None,
             do_transparent is not None,
             do_svg,
-            do_icon is not None,
         ]
     )
 
@@ -254,58 +249,44 @@ def main(
             crop_margin = None
             cutout_enabled = False
             transparent_enabled = False
-            icon_enabled = False
             do_svg = False
         elif preset == "standard":
             do_crop = True  # Enable crop with default margin
             crop_margin = None
             cutout_enabled = True
             transparent_enabled = True
-            icon_enabled = True
             do_svg = False
         elif preset == "full":
             do_crop = True  # Enable crop with default margin
             crop_margin = None
             cutout_enabled = True
             transparent_enabled = True
-            icon_enabled = False
             do_svg = True
         else:  # icon preset
             do_crop = None  # No crop
             crop_margin = None
             cutout_enabled = True
             transparent_enabled = True
-            icon_enabled = True
             do_svg = False
 
-    # Priority 3: Explicit step flags or smart defaults
+    # Priority 2: Explicit step flags or smart defaults
     else:
         if not any_step_flagged:
             # No flags - default: NO processing, only generate icons from original image
-            # This follows the Unix philosophy: "do nothing by default, let users opt-in"
             do_crop = None
             crop_margin = None
             cutout_enabled = False
             transparent_enabled = False
             do_svg = False
-            icon_enabled = True
         else:
             # Some flags provided - only enable explicitly requested steps
-            # Output is determined by the last step:
-            # - If -i is specified: generate icons
-            # - If -s is specified (and no -i): output SVG
-            # - Otherwise: output the result of the last preprocessing step
             do_crop = do_crop
             crop_margin = crop_margin
             cutout_enabled = do_cutout if do_cutout is not None else False
             transparent_enabled = do_transparent if do_transparent is not None else False
             do_svg = do_svg
 
-            # Icon generation is only enabled if explicitly requested with -i
-            icon_enabled = do_icon if do_icon is not None else False
-
-        # Priority 4: Auto-enable steps based on parameter flags
-        # If user specifies a parameter, enable that step
+        # Priority 3: Auto-enable steps based on parameter flags
         crop_enabled = do_crop or (crop_margin is not None)
         if cutout_threshold != 30:
             cutout_enabled = True
@@ -314,6 +295,12 @@ def main(
         if svg_speckle != 10 or svg_precision != 6:
             do_svg = True
 
+    # Priority 4: Determine output format
+    # --output=icon (default) → generate icons
+    # --output=png → save last processing step as PNG
+    # --output=svg → save last processing step as SVG
+    icon_enabled = output_format == "icon"
+
     try:
         from icoft.core.processor import ImageProcessor
 
@@ -321,18 +308,26 @@ def main(
         step_num = 1
 
         # Determine the last step to save the final output
+        # When --output=icon, always generate icons regardless of processing steps
         if icon_enabled:
             last_step = "icon"
-        elif do_svg:
+        elif output_format == "svg":
+            # --output=svg: save as SVG (requires -s or processing to SVG)
             last_step = "svg"
-        elif transparent_enabled:
-            last_step = "transparent"
-        elif cutout_enabled:
-            last_step = "cutout"
-        elif crop_enabled:
-            last_step = "crop"
+        elif output_format == "png":
+            # --output=png: save last processing step as PNG
+            if do_svg:
+                last_step = "svg"  # Will save as PNG after SVG processing
+            elif transparent_enabled:
+                last_step = "transparent"
+            elif cutout_enabled:
+                last_step = "cutout"
+            elif crop_enabled:
+                last_step = "crop"
+            else:
+                last_step = "original"  # Save original as PNG
         else:
-            last_step = "icon"  # Default to icon generation
+            last_step = "icon"  # Default
 
         # Step 1: Crop borders
         if crop_enabled:
@@ -432,7 +427,16 @@ def main(
 
                 # Save final output if this is the last step
                 if last_step == "svg":
-                    console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
+                    if output_format == "png":
+                        # Save SVG result as PNG (rasterize)
+                        # For now, just save the PNG before vectorization
+                        last_output_path = (
+                            output_path if is_single_file else output_path / "04_vectorized.png"
+                        )
+                        processor.save(last_output_path)
+                        console.print(f"\n[bold green]Success![/] PNG saved to: {last_output_path}")
+                    else:
+                        console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
                     return
 
             except ImportError:
@@ -440,7 +444,7 @@ def main(
                 console.print("[dim]Install with: pip install vtracer[/dim]")
                 return
 
-        # Step 5: Generate icons (default)
+        # Step 5: Generate icons (default) or save PNG
         if icon_enabled:
             from icoft.core.generator import IconGenerator
 
@@ -472,6 +476,12 @@ def main(
                     console.print(f"[red]Warning:[/] Unknown platform: {platform}")
 
             console.print(f"\n[bold green]Success![/] All icons generated in: {output_path}")
+
+        elif output_format == "png" and last_step == "original":
+            # --output=png with no processing steps: save original as PNG
+            last_output_path = output_path if is_single_file else output_path / "original.png"
+            processor.save(last_output_path)
+            console.print(f"\n[bold green]Success![/] Original image saved to: {last_output_path}")
 
     except Exception as e:
         console.print(f"[red]Error:[/] {str(e)}")
