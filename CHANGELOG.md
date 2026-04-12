@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI parameter order to follow Unix conventions: `icoft [OPTIONS] INPUT_FILE OUTPUT_DIR`
 - Default behavior: no arguments shows help message
 
+## [0.2.2-dev] - 2026-04-12
+
+### Changed
+- Simplified CLI help message structure (remove verbose manual text)
+- Let Click auto-generate Options section for consistency
+- Cleaner, more professional help output
+
 ## [0.2.1-dev] - 2026-04-12
 
 ### Changed
@@ -89,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite (23 tests)
 - Documentation: README.md, project status, design philosophy
 
-[Unreleased]: https://github.com/hexin/icoft/compare/v0.2.1-dev...HEAD
+[Unreleased]: https://github.com/hexin/icoft/compare/v0.2.2-dev...HEAD
+[0.2.2-dev]: https://github.com/hexin/icoft/compare/v0.2.1-dev...v0.2.2-dev
 [0.2.1-dev]: https://github.com/hexin/icoft/compare/v0.2.0...v0.2.1-dev
 [0.2.0]: https://github.com/hexin/icoft/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hexin/icoft/releases/tag/v0.1.0
