@@ -16,14 +16,6 @@ console = Console()
     help="Quick preset configuration",
 )
 @click.option(
-    "-c",
-    "--crop",
-    "do_crop",
-    is_flag=True,
-    default=None,
-    help="Crop borders (use default 5% margin)",
-)
-@click.option(
     "-m",
     "--crop-margin",
     "crop_margin",
@@ -32,20 +24,12 @@ console = Console()
     help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
-    "-u",
-    "--cutout",
-    "do_cutout",
-    is_flag=True,
-    default=None,
-    help="Smart cutout to extract subject",
-)
-@click.option(
     "-T",
-    "--cutout-threshold",
-    "cutout_threshold",
+    "--noise-threshold",
+    "noise_threshold",
     type=int,
     default=30,
-    help="Smart cutout sensitivity (0-255, default: 30)",
+    help="Threshold for watermark/noise removal (0-255, default: 30)",
 )
 @click.option(
     "-t",
@@ -53,7 +37,7 @@ console = Console()
     "do_transparent",
     is_flag=True,
     default=None,
-    help="Make background transparent (default: enabled)",
+    help="Make background transparent",
 )
 @click.option(
     "-B",
@@ -113,10 +97,8 @@ def main(
     input_file: str | None,
     output_dir: str | None,
     preset: str | None,
-    do_crop: bool | None,
     crop_margin: str | None,
-    do_cutout: bool | None,
-    cutout_threshold: int,
+    noise_threshold: int,
     do_transparent: bool | None,
     bg_threshold: int,
     do_svg: bool,
@@ -131,8 +113,8 @@ def main(
 
     \b
     Processing Steps (can be combined):
-      -c, --crop              Crop borders
-      -u, --cutout            Smart cutout (watermark removal)
+      -m, --crop-margin       Crop borders with margin
+      -T, --noise-threshold   Remove watermarks/noise
       -t, --transparent       Make background transparent
       -s, --svg               Vectorize to SVG
 
@@ -145,7 +127,7 @@ def main(
     \b
     Parameter Options:
       -m, --crop-margin=5%    Margin for cropping
-      -T, --cutout-threshold  Cutout sensitivity (default: 30)
+      -T, --noise-threshold   Watermark removal sensitivity (default: 30)
       -B, --bg-threshold      Background threshold (default: 10)
       -S, --svg-speckle       Filter SVG noise (default: 10)
       -P, --svg-precision     SVG color precision (default: 6)
@@ -160,7 +142,7 @@ def main(
     \b
     Presets:
       --preset=minimal        Only crop
-      --preset=standard       Crop + cutout + transparent
+      --preset=standard       Crop + noise removal + transparent
       --preset=full           All steps + vectorization
       --preset=icon           Generate icons (default)
 
@@ -169,24 +151,19 @@ def main(
       # Quick start (default: generate icons from original image)
       icoft logo.png icons/
 
-      # Combined short options (Unix-style: options first)
-      icoft -uts logo.png out/     # Cutout + transparent + svg
-      icoft -uts --output=icon logo.png out/  # + icons
-
       # With crop margin
       icoft -m 10% logo.png out/   # Crop with 10% margin
-      icoft -m 10% --output=icon logo.png out/  # + icons
 
       # Custom parameters
       icoft -m 10% -T 40 -B 15 logo.png out/
 
-      # Specific step output
-      icoft -c logo.png out/       # Just crop (single PNG)
-      icoft -u logo.png out/       # Just cutout (single PNG)
-      icoft -t logo.png out/       # Just transparent (single PNG)
-      icoft -s logo.png out/       # Just vectorize (single SVG)
-      icoft -cuts logo.png out/    # All steps (single SVG)
-      icoft -cuts --output=icon logo.png out/  # All steps + icons
+      # Combined steps + icons (default)
+      icoft -m 10% -t logo.png icons/
+
+      # Specific step output (single file)
+      icoft -m 10% logo.png out.png --output=png
+      icoft -t logo.png out.png --output=png
+      icoft -s logo.png out.svg --output=svg
     """
 
     # Handle --version flag
@@ -231,65 +208,62 @@ def main(
     # Determine which steps to execute
     use_preset = preset is not None
 
-    # Check if any step flag was explicitly provided (needed for default logic)
+    # Check if any step flag was explicitly provided
     any_step_flagged = any(
         [
-            do_crop is not None,
             crop_margin is not None,
-            do_cutout is not None,
+            noise_threshold != 30,
             do_transparent is not None,
+            bg_threshold != 10,
             do_svg,
+            svg_speckle != 10,
+            svg_precision != 6,
         ]
     )
 
     # Priority 1: Preset configuration
     if use_preset:
         if preset == "minimal":
-            do_crop = True  # Enable crop with default margin
-            crop_margin = None
-            cutout_enabled = False
+            crop_margin = "5%"  # Enable crop with default margin
+            noise_enabled = False
             transparent_enabled = False
             do_svg = False
         elif preset == "standard":
-            do_crop = True  # Enable crop with default margin
-            crop_margin = None
-            cutout_enabled = True
+            crop_margin = "5%"  # Enable crop with default margin
+            noise_enabled = True
             transparent_enabled = True
             do_svg = False
         elif preset == "full":
-            do_crop = True  # Enable crop with default margin
-            crop_margin = None
-            cutout_enabled = True
+            crop_margin = "5%"  # Enable crop with default margin
+            noise_enabled = True
             transparent_enabled = True
             do_svg = True
         else:  # icon preset
-            do_crop = None  # No crop
-            crop_margin = None
-            cutout_enabled = True
-            transparent_enabled = True
+            crop_margin = None  # No crop
+            noise_enabled = False
+            transparent_enabled = False
             do_svg = False
 
     # Priority 2: Explicit step flags or smart defaults
     else:
         if not any_step_flagged:
             # No flags - default: NO processing, only generate icons from original image
-            do_crop = None
             crop_margin = None
-            cutout_enabled = False
+            noise_enabled = False
             transparent_enabled = False
             do_svg = False
         else:
-            # Some flags provided - only enable explicitly requested steps
-            do_crop = do_crop
-            crop_margin = crop_margin
-            cutout_enabled = do_cutout if do_cutout is not None else False
-            transparent_enabled = do_transparent if do_transparent is not None else False
-            do_svg = do_svg
+            # Some flags provided - enable steps based on parameters
+            noise_enabled = noise_threshold != 30 or do_transparent is not None
+            transparent_enabled = (
+                do_transparent if do_transparent is not None else (bg_threshold != 10)
+            )
+            do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
 
-        # Priority 3: Auto-enable steps based on parameter flags
-        crop_enabled = do_crop or (crop_margin is not None)
-        if cutout_threshold != 30:
-            cutout_enabled = True
+        # Auto-enable steps based on parameter flags
+        crop_enabled = crop_margin is not None
+        if noise_threshold != 30:
+            noise_enabled = True
         if bg_threshold != 10:
             transparent_enabled = True
         if svg_speckle != 10 or svg_precision != 6:
@@ -312,22 +286,18 @@ def main(
         if icon_enabled:
             last_step = "icon"
         elif output_format == "svg":
-            # --output=svg: save as SVG (requires -s or processing to SVG)
             last_step = "svg"
         elif output_format == "png":
-            # --output=png: save last processing step as PNG
             if do_svg:
-                last_step = "svg"  # Will save as PNG after SVG processing
-            elif transparent_enabled:
+                last_step = "svg"
+            elif transparent_enabled or noise_enabled:
                 last_step = "transparent"
-            elif cutout_enabled:
-                last_step = "cutout"
             elif crop_enabled:
                 last_step = "crop"
             else:
-                last_step = "original"  # Save original as PNG
+                last_step = "original"
         else:
-            last_step = "icon"  # Default
+            last_step = "icon"
 
         # Step 1: Crop borders
         if crop_enabled:
@@ -341,7 +311,6 @@ def main(
                 processor.save(last_output_path)
                 console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
 
-            # Save final output if this is the last step
             if last_step == "crop":
                 last_output_path = output_path if is_single_file else output_path / "01_cropped.png"
                 processor.save(last_output_path)
@@ -350,26 +319,17 @@ def main(
                 )
                 return
 
-        # Step 2: Smart cutout
-        if cutout_enabled:
-            console.print(f"[yellow]Step {step_num}:[/] Applying smart cutout...")
-            processor.smart_cutout(threshold=cutout_threshold)
-            console.print("[green]✓[/green] Smart cutout applied")
+        # Step 2: Remove watermarks/noise
+        if noise_enabled:
+            console.print(f"[yellow]Step {step_num}:[/] Removing watermarks/noise...")
+            processor.smart_cutout(threshold=noise_threshold)
+            console.print("[green]✓[/green] Watermarks/noise removed")
             step_num += 1
 
             if output_intermediate:
-                last_output_path = output_path / "intermediate" / "02_cutout.png"
+                last_output_path = output_path / "intermediate" / "02_denoised.png"
                 processor.save(last_output_path)
                 console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
-
-            # Save final output if this is the last step
-            if last_step == "cutout":
-                last_output_path = output_path if is_single_file else output_path / "02_cutout.png"
-                processor.save(last_output_path)
-                console.print(
-                    f"\n[bold green]Success![/] Cutout image saved to: {last_output_path}"
-                )
-                return
 
         # Step 3: Make background transparent
         if transparent_enabled:
@@ -383,7 +343,6 @@ def main(
                 processor.save(last_output_path)
                 console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
 
-            # Save final output if this is the last step
             if last_step == "transparent":
                 last_output_path = (
                     output_path if is_single_file else output_path / "03_transparent.png"
