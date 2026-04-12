@@ -66,7 +66,8 @@ class TestIconGenerator:
 
         linux_dir = generator.output_dir / "linux" / "hicolor"
 
-        sizes = [16, 22, 24, 32, 36, 48, 64, 72, 96, 128, 256, 512]
+        # Official hicolor specification sizes
+        sizes = [16, 22, 24, 32, 48, 64, 128, 256]
         for size in sizes:
             icon_path = linux_dir / f"{size}x{size}" / "apps" / "app.png"
             assert icon_path.exists()
