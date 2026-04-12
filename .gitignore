@@ -20,9 +20,8 @@ wheels/
 .vscode/
 pyrightconfig.json
 
-# Example files (keep only origin/ for source images)
+# Example files
 examples/
-!examples/origin/
 *.py[cod]
 *$py.class
 *.so
