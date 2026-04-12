@@ -52,6 +52,10 @@ icoft source_file.png output.svg -o svg
 
 # Crop + background removal + SVG
 icoft -m 10% -t source_file.png output.svg -o svg
+
+# Generate icons for specific platforms only
+icoft source_file.png icons/ -p windows,web
+icoft source_file.png icons/ -p macos,linux
 ```
 
 ## Usage Examples
@@ -137,7 +141,7 @@ Options:
   -S, --svg-speckle=10     Filter SVG noise (1-100)
   -P, --svg-precision=6    SVG color precision (1-16)
   -o, --output=icon        Output format: icon, png, svg
-  -p, --platforms=all      Comma-separated platforms
+  -p, --platforms=all      Platforms: windows, macos, linux, web
   -V, --version            Show version
   -h, --help               Show help message
 ```

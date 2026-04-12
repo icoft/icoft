@@ -92,7 +92,7 @@ __version__ = version("icoft")
     "--platforms",
     type=str,
     default="all",
-    help="Comma-separated list of platforms (default: all)",
+    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
 )
 @click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
