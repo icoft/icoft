@@ -234,13 +234,17 @@ class IconGenerator:
 
     def generate_linux(self) -> None:
         """
-        Generate Linux icon set in hicolor theme format.
+        Generate Linux icon set following freedesktop.org hicolor specification.
 
-        Creates PNG icons at standard sizes following the hicolor icon theme specification.
+        Creates PNG icons at standard sizes + SVG vector for infinite scalability.
+        Directory structure: hicolor/SIZExSIZE/apps/app.png
         """
         output_path = self.output_dir / "linux" / "hicolor"
 
-        sizes = [16, 22, 24, 32, 36, 48, 64, 72, 96, 128, 256, 512]
+        # Official hicolor specification sizes (real pixels, no 1x/@2x concept)
+        # Minimum compliant: 16, 32, 48, 64, 128 + scalable/SVG
+        # Full specification includes all common sizes
+        sizes = [16, 22, 24, 32, 48, 64, 128, 256]
 
         for size in sizes:
             size_dir = output_path / f"{size}x{size}" / "apps"
@@ -248,6 +252,7 @@ class IconGenerator:
 
             resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
 
+            # Apply sharpening for small sizes (better clarity)
             if size < 64:
                 from PIL import ImageFilter
 
@@ -264,6 +269,7 @@ class IconGenerator:
             icon_path = size_dir / "app.png"
             resized.save(icon_path, "PNG")
 
+        # Generate SVG vector icon (preferred format - scales to any size)
         svg_dir = output_path / "scalable" / "apps"
         svg_dir.mkdir(parents=True, exist_ok=True)
 
