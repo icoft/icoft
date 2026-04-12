@@ -5,11 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-04-12
+
+### Added
+- Full Windows 10/11 ICO support (8 sizes: 16-256px with PNG compression)
+- Complete macOS Retina ICNS support (10 PNG sizes + ICNS container)
+- Official Linux hicolor specification compliance (8 sizes + SVG)
+- Single file output mode (`-o png` / `-o svg`)
+- Platform names in `--platforms` help text
+- Clear error messages for missing arguments
 
 ### Changed
-- CLI parameter order to follow Unix conventions: `icoft [OPTIONS] INPUT_FILE OUTPUT_DIR`
-- Default behavior: no arguments shows help message
+- Linux icon sizes to official hicolor spec (removed Android sizes, added 256px)
+- Output directory structure documentation with complete file listing
+- `--output` help text to clarify directory vs single file modes
+- CLI examples to use short parameter `-o`
+
+### Removed
+- Complex watermark removal algorithm (`HybridWatermarkRemover`)
+- `-T/--noise-threshold` parameter (smart cutout)
+- `denoise()` method and OpenCV dependency for watermark removal
+- Unrealistic v0.3 roadmap items (batch processing, config files)
+
+### Fixed
+- Windows ICO generation (Pillow bug - manual implementation)
+- macOS ICNS generation (manual implementation with OSType codes)
+- Missing 256px size in Linux icon set
+- Unclear platform parameter names
 
 ## [0.2.2-dev] - 2026-04-12
 
