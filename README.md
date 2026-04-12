@@ -207,7 +207,7 @@ icoft/
 
 ## Roadmap
 
-### v0.2.0-dev (Current)
+### v0.3.0 (Current)
 
 - ✅ Unix-style CLI parameter design
 - ✅ Step-by-step processing control
@@ -215,8 +215,10 @@ icoft/
 - ✅ Smart cutout improvements
 - ✅ Edge artifact removal
 - ✅ Configuration parameters with auto-enable
+- ✅ Single file output mode (-o png/svg)
+- ✅ Improved CLI help and error messages
 
-### v0.3.0 (Planned)
+### v0.4.0 (Planned)
 
 - [ ] Improve edge detection for better cropping
 - [ ] Support more input formats (WEBP, AVIF)
