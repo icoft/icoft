@@ -97,31 +97,26 @@ def main(
     """Icoft - From Single Image to Full-Platform App Icons.
 
     \b
-    Processing Steps (can be combined):
-      -m, --crop-margin       Crop borders with margin
-      -T, --noise-threshold   Remove watermarks/noise
-      -t, --transparent       Make background transparent
-      -s, --svg               Vectorize to SVG
+    Processing Steps:
+      -m, --crop-margin      Crop borders with margin
+      -T, --noise-threshold  Remove watermarks/noise
+      -t, --transparent      Make background transparent
+      -s, --svg              Vectorize to SVG
 
     \b
     Output Options:
-      --output=icon           Generate platform icons (default)
-      --output=png            Save last processing step as PNG
-      --output=svg            Save last processing step as SVG
+      --output=icon          Generate platform icons (default)
+      --output=png           Save last processing step as PNG
+      --output=svg           Save last processing step as SVG
 
     \b
-    Parameter Options:
-      -m, --crop-margin=5%    Margin for cropping
-      -T, --noise-threshold   Watermark removal sensitivity (default: 30)
-      -B, --bg-threshold      Background threshold (default: 10)
-      -S, --svg-speckle       Filter SVG noise (default: 10)
-      -P, --svg-precision     SVG color precision (default: 6)
-
-    \b
-    Options:
-      -p, --platforms TEXT    Comma-separated platforms (default: all)
-      -V, --version           Show version
-      -h, --help              Show help message
+    Parameters:
+      -m, --crop-margin      Crop margin (e.g., 5%, 10px)
+      -T, --noise-threshold  Watermark removal sensitivity (default: 30)
+      -B, --bg-threshold     Background removal tolerance (default: 10)
+      -S, --svg-speckle      Filter SVG noise (default: 10)
+      -P, --svg-precision    SVG color precision (default: 6)
+      -p, --platforms        Comma-separated platforms (default: all)
 
     \b
     Examples:
