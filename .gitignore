@@ -6,12 +6,17 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
+# IDE and editor files
 .venv
 .ruff_cache
-.vscode/settings.json.user
-.vscode/workspace.xml
-.vscode/*.lock
+.lingma/
+.trae/
+.vscode/
+pyrightconfig.json
+
+# Example files (keep only origin/ for source images)
+examples/
+!examples/origin/
 *.py[cod]
 *$py.class
 *.so
