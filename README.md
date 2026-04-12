@@ -72,22 +72,36 @@ Output structure:
 ```
 dest_dir/
 ├── windows/
-│   └── app.ico
+│   └── app.ico                  # Windows ICO (8 sizes: 16-256px)
 ├── macos/
-│   ├── app.icns
-│   └── icon_512x512.png
+│   ├── app.icns                 # macOS ICNS container
+│   ├── icon_16x16.png          # 16×16 @1x
+│   ├── icon_16x16@2x.png       # 16×16 @2x (32×32)
+│   ├── icon_32x32.png          # 32×32 @1x
+│   ├── icon_32x32@2x.png       # 32×32 @2x (64×64)
+│   ├── icon_128x128.png        # 128×128 @1x
+│   ├── icon_128x128@2x.png     # 128×128 @2x (256×256)
+│   ├── icon_256x256.png        # 256×256 @1x
+│   ├── icon_256x256@2x.png     # 256×256 @2x (512×512)
+│   ├── icon_512x512.png        # 512×512 @1x
+│   └── icon_512x512@2x.png     # 512×512 @2x (1024×1024)
 ├── linux/
 │   └── hicolor/
 │       ├── 16x16/apps/app.png
+│       ├── 22x22/apps/app.png
+│       ├── 24x24/apps/app.png
 │       ├── 32x32/apps/app.png
-│       ├── ... (more sizes)
+│       ├── 48x48/apps/app.png
+│       ├── 64x64/apps/app.png
+│       ├── 128x128/apps/app.png
+│       ├── 256x256/apps/app.png
 │       └── scalable/apps/app.svg
 └── web/
-    ├── favicon.ico
-    ├── apple-touch-icon.png
-    ├── icon-192x192.png
-    ├── icon-512x512.png
-    └── manifest.json
+    ├── favicon.ico              # Browser favicon
+    ├── apple-touch-icon.png     # iOS home screen icon
+    ├── icon-192x192.png         # PWA icon
+    ├── icon-512x512.png         # PWA icon
+    └── manifest.json            # PWA manifest
 ```
 
 ### Example 2: Crop and Remove Background
