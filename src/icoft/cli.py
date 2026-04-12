@@ -109,7 +109,7 @@ console = Console()
     is_flag=True,
     help="Save intermediate processing steps",
 )
-@click.version_option(version="0.2.0-dev", prog_name="icoft")
+@click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
     input_file: str | None,
     output_dir: str | None,
@@ -126,9 +126,9 @@ def main(
     do_icon: bool | None,
     platforms: str,
     output_intermediate: bool,
+    show_version: bool,
 ) -> None:
-    """
-    Icoft - From AI Logo to Full-Platform App Icons.
+    """Icoft - From AI Logo to Full-Platform App Icons.
 
     \b
     Processing Steps (can be combined):
@@ -145,6 +145,13 @@ def main(
       -B, --bg-threshold      Background threshold
       -S, --svg-speckle       Filter SVG noise
       -P, --svg-precision     SVG color precision
+
+    \b
+    Options:
+      -p, --platforms TEXT    Comma-separated platforms (default: all)
+      -I, --output-intermediate  Save intermediate steps
+      -V, --version           Show version
+      -h, --help              Show help message
 
     \b
     Presets:
@@ -171,6 +178,14 @@ def main(
       icoft -cut logo.png out/     # Crop + cutout + transparent
       icoft -s logo.png out/       # Just vectorize
     """
+
+    # Handle --version flag
+    if show_version:
+        from rich.console import Console
+
+        console = Console()
+        console.print("[bold blue]icoft[/bold blue] [dim]v0.2.0-dev[/dim]")
+        return
     # Show help if no arguments provided
     if input_file is None or output_dir is None:
         ctx = click.get_current_context()
