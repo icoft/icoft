@@ -29,54 +29,31 @@ class ImageProcessor:
 
     def crop_borders(self, margin: str = "5%") -> "ImageProcessor":
         """
-        Automatically crop solid-color borders from the image.
+        Crop borders from the image by the specified margin.
+
+        This simply crops the edges by the margin amount to remove
+        watermarks or quality issues at the borders.
 
         Args:
-            margin: Margin percentage to add around the content (e.g., "10%" or "5px").
+            margin: Margin percentage to crop from edges (e.g., "10%" or "5px").
 
         Returns:
             self for method chaining.
         """
-        # 使用 Pillow 自带的 getbbox() 方法自动检测边界
-        # getbbox() 返回非透明区域的边界框 (left, upper, right, lower)
-        bbox = self.image.getbbox()
-
-        # 如果 bbox 是整个图像（没有透明区域），尝试基于背景色检测
-        if bbox == (0, 0, *self.image.size):
-            # 临时创建背景透明版本来检测真实边界
-            temp_img = self.image.copy()
-            temp_array = np.array(temp_img)
-
-            if temp_array.shape[2] == 4:
-                # 检测四个角的背景色
-                corners = [
-                    temp_array[0, 0],
-                    temp_array[0, -1],
-                    temp_array[-1, 0],
-                    temp_array[-1, -1],
-                ]
-                bg_colors = [c for c in corners if c[3] > 200]
-
-                if bg_colors:
-                    bg_color = np.mean(bg_colors, axis=0)[:3]
-                    # 创建临时透明 mask
-                    alpha = temp_array[:, :, 3]
-                    is_background = np.all(
-                        np.abs(temp_array[:, :, :3].astype(float) - bg_color) < 10, axis=2
-                    )
-                    alpha[is_background] = 0
-                    temp_array[:, :, 3] = alpha
-                    temp_img = Image.fromarray(temp_array)
-
-                    # 重新获取 bbox
-                    bbox = temp_img.getbbox()
-
-        if bbox is not None:
-            self.image = self.image.crop(bbox)
-
         margin_value = self._parse_margin(margin, self.image.size)
+        
         if margin_value > 0:
-            self._add_margin(margin_value)
+            width, height = self.image.size
+            
+            # Calculate crop box (crop from all edges by margin_value)
+            left = margin_value
+            upper = margin_value
+            right = width - margin_value
+            lower = height - margin_value
+            
+            # Ensure valid crop box
+            if left < right and upper < lower:
+                self.image = self.image.crop((left, upper, right, lower))
 
         return self
 
