@@ -1,0 +1,246 @@
+"""Image preprocessing module for Icoft."""
+
+from pathlib import Path
+
+import cv2
+import numpy as np
+from PIL import Image
+
+from icoft.core.watermark_advanced import HybridWatermarkRemover
+
+
+class ImageProcessor:
+    """
+    Image processor for AI-generated logos.
+
+    Handles cropping, background removal, and noise reduction.
+    """
+
+    def __init__(self, image_path: str | Path) -> None:
+        """
+        Initialize the image processor.
+
+        Args:
+            image_path: Path to the input image file.
+        """
+        self.image_path = Path(image_path)
+        self.image = Image.open(self.image_path).convert("RGBA")
+        self.original_image = self.image.copy()
+
+    def crop_borders(self, margin: str = "5%") -> "ImageProcessor":
+        """
+        Automatically crop solid-color borders from the image.
+
+        Args:
+            margin: Margin percentage to add around the content (e.g., "10%" or "5px").
+
+        Returns:
+            self for method chaining.
+        """
+        # 使用 Pillow 自带的 getbbox() 方法自动检测边界
+        # getbbox() 返回非透明区域的边界框 (left, upper, right, lower)
+        bbox = self.image.getbbox()
+
+        # 如果 bbox 是整个图像（没有透明区域），尝试基于背景色检测
+        if bbox == (0, 0, *self.image.size):
+            # 临时创建背景透明版本来检测真实边界
+            temp_img = self.image.copy()
+            temp_array = np.array(temp_img)
+
+            if temp_array.shape[2] == 4:
+                # 检测四个角的背景色
+                corners = [
+                    temp_array[0, 0],
+                    temp_array[0, -1],
+                    temp_array[-1, 0],
+                    temp_array[-1, -1],
+                ]
+                bg_colors = [c for c in corners if c[3] > 200]
+
+                if bg_colors:
+                    bg_color = np.mean(bg_colors, axis=0)[:3]
+                    # 创建临时透明 mask
+                    alpha = temp_array[:, :, 3]
+                    is_background = np.all(
+                        np.abs(temp_array[:, :, :3].astype(float) - bg_color) < 10, axis=2
+                    )
+                    alpha[is_background] = 0
+                    temp_array[:, :, 3] = alpha
+                    temp_img = Image.fromarray(temp_array)
+
+                    # 重新获取 bbox
+                    bbox = temp_img.getbbox()
+
+        if bbox is not None:
+            self.image = self.image.crop(bbox)
+
+        margin_value = self._parse_margin(margin, self.image.size)
+        if margin_value > 0:
+            self._add_margin(margin_value)
+
+        return self
+
+    def make_background_transparent(self, tolerance: int = 10) -> "ImageProcessor":
+        """
+        Convert single-color background to transparent.
+
+        Args:
+            tolerance: Color tolerance for background detection (0-255).
+
+        Returns:
+            self for method chaining.
+        """
+        img_array = np.array(self.image)
+
+        if img_array.shape[2] == 4:
+            corners = [
+                img_array[0, 0],
+                img_array[0, -1],
+                img_array[-1, 0],
+                img_array[-1, -1],
+            ]
+
+            bg_colors = []
+            for corner in corners:
+                if corner[3] > 200:
+                    bg_colors.append(corner[:3])
+
+            if bg_colors:
+                bg_color = np.mean(bg_colors, axis=0)
+                alpha = img_array[:, :, 3]
+                is_background = np.all(
+                    np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
+                )
+                alpha[is_background] = 0
+                img_array[:, :, 3] = alpha
+
+        self.image = Image.fromarray(img_array)
+        return self
+
+    def smart_cutout(self, threshold: int = 30) -> "ImageProcessor":
+        """
+        Apply smart cutout algorithm to extract subject from background.
+
+        This uses the HybridWatermarkRemover algorithm to:
+        1. Detect subject edges using Canny edge detection
+        2. Create adaptive threshold based on background brightness
+        3. Remove edge artifacts (2px erosion for dark backgrounds)
+        4. Generate smooth alpha mask with Gaussian blur
+
+        Args:
+            threshold: Base threshold for detection (default: 30).
+                      Higher values preserve more details.
+
+        Returns:
+            self for method chaining.
+        """
+        remover = HybridWatermarkRemover(self.image_path)
+        self.image = remover.remove(threshold=threshold)
+        return self
+
+    def denoise(self, strength: int = 5) -> "ImageProcessor":
+        """
+        Apply noise reduction to the image.
+
+        Args:
+            strength: Denoising strength (higher = more smoothing).
+
+        Returns:
+            self for method chaining.
+        """
+        img_array = np.array(self.image)
+
+        if img_array.shape[2] == 4:
+            rgb = img_array[:, :, :3]
+            alpha = img_array[:, :, 3]
+            rgb_denoised = cv2.fastNlMeansDenoisingColored(rgb, None, strength, strength, 7, 21)
+            img_array = np.dstack([rgb_denoised, alpha])
+        else:
+            img_array = cv2.fastNlMeansDenoisingColored(img_array, None, strength, strength, 7, 21)
+
+        self.image = Image.fromarray(img_array)
+        return self
+
+    def resize(self, size: tuple[int, int], sharpen: bool = True) -> "ImageProcessor":
+        """
+        Resize the image to the specified size with optional sharpening.
+
+        Args:
+            size: Target size as (width, height).
+            sharpen: Apply sharpening for small sizes (< 64px).
+
+        Returns:
+            self for method chaining.
+        """
+        from PIL import ImageFilter
+
+        target_size = min(size)
+
+        self.image = self.image.resize(size, Image.Resampling.LANCZOS)
+
+        if sharpen and target_size < 64:
+            if target_size < 32:
+                sharpness = 180
+            elif target_size < 48:
+                sharpness = 150
+            else:
+                sharpness = 130
+
+            self.image = self.image.filter(
+                ImageFilter.UnsharpMask(radius=1, percent=sharpness, threshold=3)
+            )
+
+        return self
+
+    def save(self, output_path: str | Path) -> None:
+        """
+        Save the processed image.
+
+        Args:
+            output_path: Path to save the image.
+        """
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self.image.save(output_path, "PNG")
+
+    def _parse_margin(self, margin: str, image_size: tuple[int, int]) -> int:
+        """
+        Parse margin string to pixel value.
+
+        Args:
+            margin: Margin string (e.g., "10%" or "5px").
+            image_size: Image size as (width, height).
+
+        Returns:
+            Margin value in pixels.
+        """
+        margin = margin.strip()
+
+        if margin.endswith("%"):
+            percentage = float(margin[:-1]) / 100.0
+            return int(min(image_size) * percentage)
+        elif margin.endswith("px"):
+            return int(margin[:-2])
+        else:
+            try:
+                return int(float(margin))
+            except ValueError:
+                return int(min(image_size) * 0.1)
+
+    def _add_margin(self, margin_pixels: int) -> None:
+        """
+        Add margin around the image.
+
+        Args:
+            margin_pixels: Margin size in pixels.
+        """
+        if margin_pixels <= 0:
+            return
+
+        width, height = self.image.size
+        new_width = width + 2 * margin_pixels
+        new_height = height + 2 * margin_pixels
+
+        new_image = Image.new("RGBA", (new_width, new_height), (0, 0, 0, 0))
+        new_image.paste(self.image, (margin_pixels, margin_pixels))
+        self.image = new_image

@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "icoft"
+version = "0.2.0-dev"
+description = "From AI Logo to Full-Platform App Icons - CLI Tool"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1.0",
+    "Pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "rich>=13.0.0",
+    "scipy>=1.10.0",
+    "scikit-image>=0.20.0",
+    "vtracer>=0.6.0",
+    "cairosvg>=2.9.0",
+]
+
+[project.scripts]
+icoft = "icoft.cli:main"
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/icoft"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.vscode]
+python.terminal.activateEnvironment = true
+python.terminal.autoActivationType = "shellStartup"
+python.workspaceSearchPaths = ["./**/.venv"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "T20", "SIM", "ARG", "PTH"
+]
+fixable = ["ALL"]
+ignore = ["E501", "T20"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
