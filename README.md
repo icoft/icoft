@@ -12,7 +12,7 @@ Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP)
 ## Features
 
 - **Icon Generation**: Complete icon sets for Windows, macOS, Linux, and Web
-- **Image Cropping**: Automatic border removal with customizable margins
+- **Image Cropping**: Manual border removal with customizable margins
 - **Background Removal**: Convert solid-color backgrounds to transparent
 - **Vectorization**: High-quality PNG to SVG conversion
 - **Flexible Output**: Generate full icon sets or single processed images
@@ -94,6 +94,7 @@ icoft -m 10% -t source_file.png dest_dir/
 ```
 
 This performs:
+
 1. Crop borders with 10% margin
 2. Make background transparent
 3. Generate full icon set
@@ -193,10 +194,13 @@ icoft/
 
 ### v0.3.0 (Planned)
 
-- [ ] Batch processing
-- [ ] Configuration file support (YAML/JSON)
-- [ ] Quality reports and recommendations
-- [ ] Enhanced test coverage
+- [ ] Improve edge detection for better cropping
+- [ ] Support more input formats (WEBP, AVIF)
+- [ ] Optimize SVG output quality
+- [ ] Add progress indicators for long operations
+- [ ] Support custom icon sizes
+- [ ] Add platform-specific output options
+- [ ] Improve error messages
 
 ### v1.0.0 (Future)
 
