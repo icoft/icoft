@@ -5,7 +5,6 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/pypi/v/icoft.svg)](https://pypi.org/project/icoft/)
-[![GitHub License](https://img.shields.io/github/license/hexin/icoft)](https://github.com/hexin/icoft/blob/main/LICENSE)
 
 Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into icons for all platforms (Windows, macOS, Linux, Web), or performs image processing tasks like cropping, background removal, and vectorization.
 
