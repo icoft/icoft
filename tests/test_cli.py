@@ -32,8 +32,8 @@ class TestCLI:
 
         assert result.exit_code == 0
         assert "Icoft" in result.output
-        assert "INPUT_FILE" in result.output
-        assert "OUTPUT_DIR" in result.output
+        assert "SOURCE_FILE" in result.output
+        assert "DEST_DIR" in result.output
 
     def test_version(self):
         """Test CLI version command."""
