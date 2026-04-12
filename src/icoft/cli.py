@@ -85,7 +85,7 @@ __version__ = version("icoft")
     "output_format",
     type=click.Choice(["png", "svg", "icon"]),
     default="icon",
-    help="Output format (default: icon)",
+    help="Output format: icon (directory), png (single file), svg (single file)",
 )
 @click.option(
     "-p",

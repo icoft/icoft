@@ -129,9 +129,15 @@ icoft -m 10% -t source_file.png output.svg -o svg
 ## Command-Line Options
 
 ```
-Usage: icoft [OPTIONS] INPUT_FILE OUTPUT_DIR
+Usage: icoft [OPTIONS] SOURCE_FILE DEST_DIR
+       icoft [OPTIONS] SOURCE_FILE OUTPUT_FILE -o FORMAT
 
 Icoft - From Single Image to Full-Platform App Icons.
+
+Output Modes:
+  DEST_DIR              Generate full icon set for selected platforms
+  OUTPUT_FILE -o png    Save processed image as single PNG
+  OUTPUT_FILE -o svg    Save processed image as single SVG (auto-vectorizes)
 
 Options:
   -m, --crop-margin        Margin for cropping (e.g., 5%, 10px)
