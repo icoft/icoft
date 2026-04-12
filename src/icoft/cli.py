@@ -94,49 +94,7 @@ def main(
     platforms: str,
     show_version: bool,
 ) -> None:
-    """Icoft - From Single Image to Full-Platform App Icons.
-
-    \b
-    Processing Steps:
-      -m, --crop-margin      Crop borders with margin
-      -T, --noise-threshold  Remove watermarks/noise
-      -t, --transparent      Make background transparent
-      -s, --svg              Vectorize to SVG
-
-    \b
-    Output Options:
-      --output=icon          Generate platform icons (default)
-      --output=png           Save last processing step as PNG
-      --output=svg           Save last processing step as SVG
-
-    \b
-    Parameters:
-      -m, --crop-margin      Crop margin (e.g., 5%, 10px)
-      -T, --noise-threshold  Watermark removal sensitivity (default: 30)
-      -B, --bg-threshold     Background removal tolerance (default: 10)
-      -S, --svg-speckle      Filter SVG noise (default: 10)
-      -P, --svg-precision    SVG color precision (default: 6)
-      -p, --platforms        Comma-separated platforms (default: all)
-
-    \b
-    Examples:
-      # Quick start (default: generate icons from original image)
-      icoft logo.png icons/
-
-      # With crop margin
-      icoft -m 10% logo.png out/   # Crop with 10% margin
-
-      # Custom parameters
-      icoft -m 10% -T 40 -B 15 logo.png out/
-
-      # Combined steps + icons (default)
-      icoft -m 10% -t logo.png icons/
-
-      # Specific step output (single file)
-      icoft -m 10% logo.png out.png --output=png
-      icoft -t logo.png out.png --output=png
-      icoft -s logo.png out.svg --output=svg
-    """
+    """Icoft - From Single Image to Full-Platform App Icons."""
 
     # Handle --version flag
     if show_version:
