@@ -54,9 +54,9 @@ icoft -m 10% -T 40 -B 15 logo.png out/
 icoft -m 10% -t logo.png icons/
 
 # Specific step output (single file)
-icoft -m 10% logo.png out.png --output=png
-icoft -t logo.png out.png --output=png
-icoft -s logo.png out.svg --output=svg
+icoft -m 10% logo.png out.png -o png
+icoft -t logo.png out.png -o png
+icoft -s logo.png out.svg -o svg
 ```
 
 ## Usage Examples
@@ -69,6 +69,7 @@ icoft my_logo.png output/
 ```
 
 Output structure:
+
 ```
 output/
 ├── windows/
@@ -121,25 +122,23 @@ Icoft - From Single Image to Full-Platform App Icons.
 
 Processing Steps (can be combined):
   -m, --crop-margin       Crop borders with margin
-  -T, --noise-threshold   Remove watermarks/noise
+  -T, --noise-threshold   Remove watermarks/noise (smart cutout)
   -t, --transparent       Make background transparent
   -s, --svg               Vectorize to SVG
 
 Output Options:
-  --output=icon           Generate platform icons (default)
-  --output=png            Save last processing step as PNG
-  --output=svg            Save last processing step as SVG
+  -o, --output FORMAT     Output format: icon (default), png, svg
 
 Parameter Options:
-  -m, --crop-margin=5%    Margin for cropping
-  -T, --noise-threshold   Watermark removal sensitivity (default: 30)
-  -B, --bg-threshold      Background threshold (default: 10)
-  -S, --svg-speckle       Filter SVG noise (default: 10)
-  -P, --svg-precision     SVG color precision (default: 6)
+  -m, --crop-margin=5%    Margin for cropping (e.g., 5%, 10px)
+  -T, --noise-threshold   Watermark removal sensitivity (0-255, default: 30)
+  -B, --bg-threshold      Background threshold (0-255, default: 10)
+  -S, --svg-speckle       Filter SVG noise (1-100, default: 10)
+  -P, --svg-precision     SVG color precision (1-16, default: 6)
 
 Options:
   -p, --platforms TEXT    Comma-separated platforms (default: all)
-  --version               Show version
+  -V, --version           Show version
   -h, --help              Show help message
 ```
 
@@ -185,6 +184,7 @@ icoft/
 ## Roadmap
 
 ### v0.2.0-dev (Current)
+
 - ✅ Unix-style CLI parameter design
 - ✅ Step-by-step processing control
 - ✅ Vectorization with vtracer
@@ -193,12 +193,14 @@ icoft/
 - ✅ Configuration parameters with auto-enable
 
 ### v0.3.0 (Planned)
+
 - [ ] Batch processing
 - [ ] Configuration file support (YAML/JSON)
 - [ ] Quality reports and recommendations
 - [ ] Enhanced test coverage
 
 ### v1.0.0 (Future)
+
 - [ ] iOS icon optimization
 - [ ] Android adaptive icons
 - [ ] CI/CD integration templates
@@ -224,7 +226,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Image processing powered by [Pillow](https://pillow.readthedocs.io/) and [OpenCV](https://opencv.org/)
 - Terminal output美化 with [Rich](https://rich.readthedocs.io/)
 
----
+***
 
 **Icoft** = **Icon** + **Forge** 🛠️
 

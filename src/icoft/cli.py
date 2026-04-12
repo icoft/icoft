@@ -1,7 +1,21 @@
-"""Command-line interface for Icoft - Icon Forge."""
+"""Command-line interface for Icoft - Icon Forge.
+
+Examples:
+  # Basic usage - generate icons from original image
+  icoft logo.png icons/
+
+  # With processing steps
+  icoft -m 10% -t logo.png icons/
+  icoft -m 10% -T 30 -s logo.png icons/
+
+  # Single file output
+  icoft -s logo.png output.svg -o svg
+  icoft -m 10% logo.png output.png -o png
+"""
+
+from importlib.metadata import version
 
 import click
-from importlib.metadata import version
 from rich.console import Console
 
 console = Console()
@@ -59,7 +73,7 @@ __version__ = version("icoft")
     "svg_speckle",
     type=int,
     default=10,
-    help="Filter small noise in SVG (default: 10)",
+    help="Filter SVG noise (1-100, default: 10)",
 )
 @click.option(
     "-P",
@@ -67,9 +81,10 @@ __version__ = version("icoft")
     "svg_precision",
     type=int,
     default=6,
-    help="Color precision for SVG (default: 6)",
+    help="SVG color precision (1-16, default: 6)",
 )
 @click.option(
+    "-o",
     "--output",
     "output_format",
     type=click.Choice(["png", "svg", "icon"]),
@@ -104,11 +119,31 @@ def main(
     if show_version:
         console.print(f"[bold blue]icoft[/bold blue] [dim]v{__version__}[/dim]")
         return
-    # Show help if no arguments provided
-    if input_file is None or output_dir is None:
-        ctx = click.get_current_context()
-        click.echo(ctx.get_help())
-        return
+
+    # Validate required arguments with clear error messages
+    if input_file is None and output_dir is None:
+        console.print("[red]Error:[/] Missing required arguments")
+        console.print("  [bold]INPUT_FILE[/bold] and [bold]OUTPUT_DIR[/bold] are required.")
+        console.print("\n[bold blue]Examples:[/]")
+        console.print("  icoft logo.png icons/              # Generate icons from original")
+        console.print("  icoft -m 10% logo.png icons/       # Crop + generate icons")
+        console.print("  icoft -s logo.png out.svg -o svg   # Vectorize to SVG")
+        console.print("\nUse [bold]-h[/bold] or [bold]--help[/bold] for more options.")
+        raise SystemExit(1)
+
+    if input_file is None:
+        console.print("[red]Error:[/] Missing [bold]INPUT_FILE[/bold] argument")
+        console.print("  Please specify the input image file.")
+        console.print("\n[bold blue]Example:[/] icoft logo.png icons/")
+        raise SystemExit(1)
+
+    if output_dir is None:
+        console.print("[red]Error:[/] Missing [bold]OUTPUT_DIR[/bold] argument")
+        console.print("  Please specify the output directory or file path.")
+        console.print("\n[bold blue]Examples:[/]")
+        console.print("  icoft logo.png [bold]icons/[/bold]           # Output to directory")
+        console.print("  icoft logo.png [bold]out.svg[/bold] -o svg   # Output to single file")
+        raise SystemExit(1)
 
     from pathlib import Path
 
@@ -156,23 +191,27 @@ def main(
     if not any_step_flagged:
         # No flags - default: NO processing, only generate icons from original image
         crop_margin = None
+        crop_enabled = False
         noise_enabled = False
         transparent_enabled = False
         do_svg = False
     else:
-        # Some flags provided - enable steps based on parameters
-        noise_enabled = noise_threshold != 30 or do_transparent is not None
-        transparent_enabled = do_transparent if do_transparent is not None else (bg_threshold != 10)
-        do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
+        # Enable steps based on which parameters were provided
+        # -t or -B → transparent_enabled (simple background removal)
+        # -T → noise_enabled (smart cutout/watermark removal)
+        transparent_enabled = do_transparent is not None or bg_threshold != 10
+        noise_enabled = noise_threshold != 30
 
         # Auto-enable steps based on parameter flags
         crop_enabled = crop_margin is not None
-        if noise_threshold != 30:
-            noise_enabled = True
-        if bg_threshold != 10:
+        do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
+
+    # --output=svg should auto-enable vectorization
+    if output_format == "svg" and not do_svg:
+        do_svg = True
+        # Also enable transparent background if no other processing specified
+        if not transparent_enabled and not noise_enabled:
             transparent_enabled = True
-        if svg_speckle != 10 or svg_precision != 6:
-            do_svg = True
 
     # Priority 4: Determine output format
     # --output=icon (default) → generate icons
@@ -195,8 +234,10 @@ def main(
         elif output_format == "png":
             if do_svg:
                 last_step = "svg"
-            elif transparent_enabled or noise_enabled:
+            elif transparent_enabled:
                 last_step = "transparent"
+            elif noise_enabled:
+                last_step = "noise"
             elif crop_enabled:
                 last_step = "crop"
             else:
@@ -219,29 +260,42 @@ def main(
                 )
                 return
 
-        # Step 2: Remove watermarks/noise
-        if noise_enabled:
-            console.print(f"[yellow]Step {step_num}:[/] Removing watermarks/noise...")
-            processor.smart_cutout(threshold=noise_threshold)
-            console.print("[green]✓[/green] Watermarks/noise removed")
-            step_num += 1
-
-        # Step 3: Make background transparent
+        # Step 2: Background processing (choose one method)
+        # -t/-B: Simple background removal (detect corner color)
+        # -T: Advanced watermark/noise removal (edge detection + adaptive threshold)
         if transparent_enabled:
-            console.print(f"[yellow]Step {step_num}:[/] Converting background to transparent...")
+            # Simple background removal
+            console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
             processor.make_background_transparent(tolerance=bg_threshold)
             console.print("[green]✓[/green] Background made transparent")
-            step_num += 1
 
             if last_step == "transparent":
                 last_output_path = (
-                    output_path if is_single_file else output_path / "03_transparent.png"
+                    output_path if is_single_file else output_path / "02_transparent.png"
                 )
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Transparent PNG saved to: {last_output_path}"
                 )
                 return
+            step_num += 1
+
+        elif noise_enabled:
+            # Advanced watermark/noise removal
+            console.print(f"[yellow]Step {step_num}:[/] Removing watermarks/noise...")
+            processor.smart_cutout(threshold=noise_threshold)
+            console.print("[green]✓[/green] Watermarks/noise removed")
+
+            if last_step == "noise":
+                last_output_path = (
+                    output_path if is_single_file else output_path / "02_denoised.png"
+                )
+                processor.save(last_output_path)
+                console.print(
+                    f"\n[bold green]Success![/] Denoised PNG saved to: {last_output_path}"
+                )
+                return
+            step_num += 1
 
         # Step 4: Vectorization (optional)
         if do_svg:
