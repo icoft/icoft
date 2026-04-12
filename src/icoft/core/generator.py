@@ -125,32 +125,112 @@ class IconGenerator:
 
         return ico_data
 
+    def _create_icns_from_png(self, png_icons: list[tuple[int, Image.Image]]) -> bytes:
+        """
+        Create ICNS file from PNG images.
+
+        ICNS format uses OSType codes to identify icon types:
+        - ic07: 128x128 @1x
+        - ic08: 128x128 @2x (256x256)
+        - ic09: 512x512 @1x
+        - ic10: 512x512 @2x (1024x1024)
+        - ic11: 16x16 @1x
+        - ic12: 16x16 @2x (32x32)
+        - ic13: 32x32 @1x
+        - ic14: 32x32 @2x (64x64)
+
+        Args:
+            png_icons: List of (size, Image) tuples
+
+        Returns:
+            ICNS file data (bytes)
+        """
+        # Map sizes to ICNS icon types
+        icon_types = {
+            16: b"ic11",  # 16x16 @1x
+            32: b"ic12",  # 16x16 @2x or 32x32 @1x
+            64: b"ic14",  # 32x32 @2x
+            128: b"ic07",  # 128x128 @1x
+            256: b"ic08",  # 128x128 @2x or 256x256 @1x
+            512: b"ic09",  # 256x256 @2x or 512x512 @1x
+            1024: b"ic10",  # 512x512 @2x
+        }
+
+        # Generate PNG data for each size
+        icon_data = []
+        for size, image in png_icons:
+            if size in icon_types:
+                # Save image as PNG
+                buffer = io.BytesIO()
+                image.save(buffer, format="PNG")
+                png_data = buffer.getvalue()
+
+                icon_type = icon_types[size]
+                icon_data.append((icon_type, png_data))
+
+        # ICNS header: 'icns' (4) + size (4) + 'big' endian
+        # Total size = 8 (header) + sum of all icon sizes
+        total_size = 8
+        for _, data in icon_data:
+            total_size += 8 + len(data)  # type(4) + size(4) + data
+
+        header = struct.pack(">4sI", b"icns", total_size)
+
+        # Icon elements
+        elements = b""
+        for icon_type, png_data in icon_data:
+            # Element header: type (4) + size (4, including header)
+            element_size = 8 + len(png_data)
+            element_header = struct.pack(">4sI", icon_type, element_size)
+            elements += element_header + png_data
+
+        return header + elements
+
     def generate_macos(self) -> None:
         """
-        Generate macOS .icns file and icon_512x512.png.
+        Generate macOS .icns file with full Retina support.
 
-        Creates an .icns file and a 512x512 PNG for App Store submission.
+        Creates an .icns file containing all required sizes:
+        16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024
+        Plus individual PNG files for App Store submission.
         """
         output_path = self.output_dir / "macos"
         output_path.mkdir(parents=True, exist_ok=True)
 
-        png_512 = output_path / "icon_512x512.png"
-        resized_512 = self.image.resize((512, 512), Image.Resampling.LANCZOS)
-        resized_512.save(png_512, "PNG")
+        # Full macOS specification sizes (includes 1x and @2x Retina)
+        # Based on point sizes: 16pt, 32pt, 128pt, 256pt, 512pt
+        png_files = [
+            (16, "icon_16x16.png"),
+            (32, "icon_16x16@2x.png"),
+            (32, "icon_32x32.png"),
+            (64, "icon_32x32@2x.png"),
+            (128, "icon_128x128.png"),
+            (256, "icon_128x128@2x.png"),
+            (256, "icon_256x256.png"),
+            (512, "icon_256x256@2x.png"),
+            (512, "icon_512x512.png"),
+            (1024, "icon_512x512@2x.png"),
+        ]
 
+        # Generate all PNG files and collect for ICNS
+        png_icons = []
+        for size, filename in png_files:
+            resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
+
+            # Save PNG
+            png_path = output_path / filename
+            resized.save(png_path, "PNG")
+
+            # Collect unique sizes for ICNS
+            if size not in [p[0] for p in png_icons]:
+                png_icons.append((size, resized))
+
+        # Generate ICNS file manually with all sizes
         icns_path = output_path / "app.icns"
+        icns_data = self._create_icns_from_png(png_icons)
 
-        try:
-            import importlib.util
-
-            if importlib.util.find_spec("PIL.IcnsImagePlugin"):
-                self.image.save(icns_path, format="ICNS")
-            else:
-                raise ImportError("ICNS support not available")
-        except (ImportError, OSError):
-            png_1024 = output_path / "icon_1024x1024.png"
-            resized_1024 = self.image.resize((1024, 1024), Image.Resampling.LANCZOS)
-            resized_1024.save(png_1024, "PNG")
+        with open(icns_path, "wb") as f:
+            f.write(icns_data)
 
     def generate_linux(self) -> None:
         """
