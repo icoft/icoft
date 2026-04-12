@@ -1,18 +1,18 @@
 # Icoft - Icon Forge
 
-**From AI Logo to Full-Platform App Icons**
+**From Single Image to Full-Platform App Icons**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.2.0--dev-blue.svg)](https://github.com/hexin/icoft)
+[![Version](https://img.shields.io/badge/version-0.2.1--dev-blue.svg)](https://github.com/hexin/icoft)
 
-Icoft is a command-line tool that converts AI-generated PNG logos into icons for all platforms (Windows, macOS, Linux, Web).
+Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into icons for all platforms (Windows, macOS, Linux, Web).
 
 ## Features
 
 - **Step-by-Step Processing**: Unix-style composable parameters for precise control
-- **Automatic Border Cropping**: Removes solid-color borders from AI-generated images
-- **Smart Cutout**: Extracts subject from background with hybrid algorithm
+- **Automatic Border Cropping**: Removes solid-color borders
+- **Watermark/Noise Removal**: Extracts subject from background
 - **Background to Transparent**: Converts single-color backgrounds to transparent
 - **Vectorization**: PNG to SVG conversion with vtracer
 - **Multi-Platform Support**:

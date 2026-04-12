@@ -101,7 +101,7 @@ def main(
     platforms: str,
     show_version: bool,
 ) -> None:
-    """Icoft - From AI Logo to Full-Platform App Icons.
+    """Icoft - From Single Image to Full-Platform App Icons.
 
     \b
     Processing Steps (can be combined):
