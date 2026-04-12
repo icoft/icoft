@@ -6,7 +6,7 @@ Examples:
 
   # With processing steps
   icoft -m 10% -t logo.png icons/
-  icoft -m 10% -T 30 -s logo.png icons/
+  icoft -m 10% -B 15 logo.png icons/
 
   # Single file output
   icoft -s logo.png output.svg -o svg
@@ -36,19 +36,11 @@ __version__ = version("icoft")
     help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
-    "-T",
-    "--noise-threshold",
-    "noise_threshold",
-    type=int,
-    default=30,
-    help="Threshold for watermark/noise removal (0-255, default: 30)",
-)
-@click.option(
     "-t",
     "--transparent",
     "do_transparent",
     is_flag=True,
-    default=None,
+    default=False,
     help="Make background transparent",
 )
 @click.option(
@@ -103,8 +95,7 @@ def main(
     input_file: str | None,
     output_dir: str | None,
     crop_margin: str | None,
-    noise_threshold: int,
-    do_transparent: bool | None,
+    do_transparent: bool,
     bg_threshold: int,
     do_svg: bool,
     svg_speckle: int,
@@ -178,8 +169,7 @@ def main(
     any_step_flagged = any(
         [
             crop_margin is not None,
-            noise_threshold != 30,
-            do_transparent is not None,
+            do_transparent,
             bg_threshold != 10,
             do_svg,
             svg_speckle != 10,
@@ -192,15 +182,12 @@ def main(
         # No flags - default: NO processing, only generate icons from original image
         crop_margin = None
         crop_enabled = False
-        noise_enabled = False
         transparent_enabled = False
         do_svg = False
     else:
         # Enable steps based on which parameters were provided
         # -t or -B → transparent_enabled (simple background removal)
-        # -T → noise_enabled (smart cutout/watermark removal)
-        transparent_enabled = do_transparent is not None or bg_threshold != 10
-        noise_enabled = noise_threshold != 30
+        transparent_enabled = do_transparent or bg_threshold != 10
 
         # Auto-enable steps based on parameter flags
         crop_enabled = crop_margin is not None
@@ -210,7 +197,7 @@ def main(
     if output_format == "svg" and not do_svg:
         do_svg = True
         # Also enable transparent background if no other processing specified
-        if not transparent_enabled and not noise_enabled:
+        if not transparent_enabled:
             transparent_enabled = True
 
     # Priority 4: Determine output format
@@ -236,8 +223,6 @@ def main(
                 last_step = "svg"
             elif transparent_enabled:
                 last_step = "transparent"
-            elif noise_enabled:
-                last_step = "noise"
             elif crop_enabled:
                 last_step = "crop"
             else:
@@ -276,23 +261,6 @@ def main(
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Transparent PNG saved to: {last_output_path}"
-                )
-                return
-            step_num += 1
-
-        elif noise_enabled:
-            # Advanced watermark/noise removal
-            console.print(f"[yellow]Step {step_num}:[/] Removing watermarks/noise...")
-            processor.smart_cutout(threshold=noise_threshold)
-            console.print("[green]✓[/green] Watermarks/noise removed")
-
-            if last_step == "noise":
-                last_output_path = (
-                    output_path if is_single_file else output_path / "02_denoised.png"
-                )
-                processor.save(last_output_path)
-                console.print(
-                    f"\n[bold green]Success![/] Denoised PNG saved to: {last_output_path}"
                 )
                 return
             step_num += 1
