@@ -116,7 +116,7 @@ icoft --config=pyproject.toml
 ```
 Usage: icoft [OPTIONS] INPUT_FILE OUTPUT_DIR
 
-Icoft - From AI Logo to Full-Platform App Icons.
+Icoft - From Single Image to Full-Platform App Icons.
 
 Processing Steps (can be combined):
   -m, --crop-margin       Crop borders with margin
@@ -136,15 +136,8 @@ Parameter Options:
   -S, --svg-speckle       Filter SVG noise (default: 10)
   -P, --svg-precision     SVG color precision (default: 6)
 
-Presets:
-  --preset=minimal        Only crop
-  --preset=standard       Crop + noise removal + transparent
-  --preset=full           All steps + vectorization
-  --preset=icon           Generate icons (default)
-
 Options:
   -p, --platforms TEXT    Comma-separated platforms (default: all)
-  -I, --output-intermediate  Save intermediate steps
   --version               Show version
   -h, --help              Show help message
 ```

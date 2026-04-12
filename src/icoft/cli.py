@@ -10,12 +10,6 @@ console = Console()
 @click.argument("input_file", type=click.Path(exists=True), required=False)
 @click.argument("output_dir", type=click.Path(), required=False)
 @click.option(
-    "--preset",
-    type=click.Choice(["minimal", "standard", "full", "icon"]),
-    default=None,
-    help="Quick preset configuration",
-)
-@click.option(
     "-m",
     "--crop-margin",
     "crop_margin",
@@ -89,7 +83,6 @@ console = Console()
 def main(
     input_file: str | None,
     output_dir: str | None,
-    preset: str | None,
     crop_margin: str | None,
     noise_threshold: int,
     do_transparent: bool | None,
@@ -129,13 +122,6 @@ def main(
       -p, --platforms TEXT    Comma-separated platforms (default: all)
       -V, --version           Show version
       -h, --help              Show help message
-
-    \b
-    Presets:
-      --preset=minimal        Only crop
-      --preset=standard       Crop + noise removal + transparent
-      --preset=full           All steps + vectorization
-      --preset=icon           Generate icons (default)
 
     \b
     Examples:
@@ -196,9 +182,6 @@ def main(
     console.print(f"Processing: {input_path}")
     console.print(f"Output: {output_path} ({'single file' if is_single_file else 'directory'})\n")
 
-    # Determine which steps to execute
-    use_preset = preset is not None
-
     # Check if any step flag was explicitly provided
     any_step_flagged = any(
         [
@@ -212,44 +195,18 @@ def main(
         ]
     )
 
-    # Priority 1: Preset configuration
-    if use_preset:
-        if preset == "minimal":
-            crop_margin = "5%"  # Enable crop with default margin
-            noise_enabled = False
-            transparent_enabled = False
-            do_svg = False
-        elif preset == "standard":
-            crop_margin = "5%"  # Enable crop with default margin
-            noise_enabled = True
-            transparent_enabled = True
-            do_svg = False
-        elif preset == "full":
-            crop_margin = "5%"  # Enable crop with default margin
-            noise_enabled = True
-            transparent_enabled = True
-            do_svg = True
-        else:  # icon preset
-            crop_margin = None  # No crop
-            noise_enabled = False
-            transparent_enabled = False
-            do_svg = False
-
-    # Priority 2: Explicit step flags or smart defaults
+    # Determine which steps to execute
+    if not any_step_flagged:
+        # No flags - default: NO processing, only generate icons from original image
+        crop_margin = None
+        noise_enabled = False
+        transparent_enabled = False
+        do_svg = False
     else:
-        if not any_step_flagged:
-            # No flags - default: NO processing, only generate icons from original image
-            crop_margin = None
-            noise_enabled = False
-            transparent_enabled = False
-            do_svg = False
-        else:
-            # Some flags provided - enable steps based on parameters
-            noise_enabled = noise_threshold != 30 or do_transparent is not None
-            transparent_enabled = (
-                do_transparent if do_transparent is not None else (bg_threshold != 10)
-            )
-            do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
+        # Some flags provided - enable steps based on parameters
+        noise_enabled = noise_threshold != 30 or do_transparent is not None
+        transparent_enabled = do_transparent if do_transparent is not None else (bg_threshold != 10)
+        do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
 
         # Auto-enable steps based on parameter flags
         crop_enabled = crop_margin is not None
