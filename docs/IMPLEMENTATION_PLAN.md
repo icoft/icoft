@@ -1,1 +1,0 @@
-# Icoft Implementation Plan
