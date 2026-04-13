@@ -34,6 +34,9 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
 ]
+vector = [
+    "cairosvg>=2.7.0",
+]
 
 [tool.vscode]
 python.terminal.activateEnvironment = true

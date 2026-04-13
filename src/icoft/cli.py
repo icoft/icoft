@@ -220,6 +220,15 @@ def main(
         console.print("These parameters control vtracer settings, which are not used in 'embed' mode")
         return
 
+    # Check for cairosvg if using normal mode with icon generation
+    if svg_mode == "normal" and output_format == "icon":
+        try:
+            import cairosvg  # noqa: F401
+        except ImportError:
+            console.print("[yellow]Warning:[/] cairosvg is not installed.")
+            console.print("[dim]Icons will be generated using standard bitmap scaling.[/dim]")
+            console.print("[dim]For higher quality vector-based icons, install with: uv sync --extra vector[/dim]")
+
     # Priority 4: Determine output format
     # --output=icon (default) → generate icons
     # --output=png → save last processing step as PNG
@@ -287,6 +296,7 @@ def main(
             step_num += 1
 
         # Step 4: SVG generation (optional)
+        svg_content_for_generator = None
         if svg_mode is not None:
             if svg_mode == "embed":
                 # Embed PNG as base64 into SVG (preserves gradients perfectly)
@@ -307,6 +317,8 @@ def main(
                 # Vector tracing with vtracer
                 console.print(f"[yellow]Step {step_num}:[/] Vectorizing (PNG to SVG)...")
                 try:
+                    import re
+
                     import vtracer  # type: ignore[import-untyped]
 
                     img = processor.image.convert("RGBA")
@@ -324,6 +336,21 @@ def main(
                         length_threshold=4.0,
                         splice_threshold=45,
                     )
+
+                    # Fix viewBox: vtracer doesn't set it, causing display issues with transforms
+                    # The paths start from (0,0) and are translated by transform attribute
+                    # So viewBox should be from (0,0) with image dimensions
+                    if 'viewBox' not in svg_result:
+                        # Add simple viewBox starting from origin and red background
+                        svg_result = re.sub(
+                            r'<svg([^>]*)>',
+                            f'<svg\\1 viewBox="0 0 {img.width} {img.height}">\n<rect width="{img.width}" height="{img.height}" fill="#FF0000"/>',
+                            svg_result,
+                            count=1
+                        )
+
+                    # For normal mode, save the SVG content for high-quality icon generation
+                    svg_content_for_generator = svg_result
                 except ImportError:
                     console.print("[red]Error:[/] Vectorization requires 'vtracer' package")
                     console.print("[dim]Install with: pip install vtracer[/dim]")
@@ -358,7 +385,7 @@ def main(
         if icon_enabled:
             from icoft.core.generator import IconGenerator
 
-            generator = IconGenerator(processor.image, output_path)
+            generator = IconGenerator(processor.image, output_path, svg_content=svg_content_for_generator)
 
             platform_list = (
                 platforms.split(",") if platforms != "all" else ["windows", "macos", "linux", "web"]

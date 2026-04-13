@@ -4,7 +4,7 @@ import io
 import struct
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 
 class IconGenerator:
@@ -14,17 +14,61 @@ class IconGenerator:
     Generates icons in various formats for Windows, macOS, Linux, and Web.
     """
 
-    def __init__(self, image: Image.Image, output_dir: str | Path) -> None:
+    def __init__(
+        self, image: Image.Image, output_dir: str | Path, svg_content: str | None = None
+    ) -> None:
         """
         Initialize the icon generator.
 
         Args:
             image: PIL Image object (should be RGBA mode).
             output_dir: Output directory for generated icons.
+            svg_content: Optional SVG string for high-quality vector-based scaling.
         """
         self.image = image.convert("RGBA")
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.svg_content = svg_content
+        self._check_vector_support()
+
+    def _check_vector_support(self) -> bool:
+        """Check if cairosvg is available for vector-based rendering."""
+        try:
+            import cairosvg
+
+            self.has_vector_support = True
+            return True
+        except ImportError:
+            self.has_vector_support = False
+            return False
+
+    def _render_from_svg(self, size: int) -> Image.Image:
+        """
+        Render a specific size from SVG content using cairosvg.
+
+        Args:
+            size: The target width/height in pixels.
+
+        Returns:
+            Resized PIL Image.
+        """
+        if not self.svg_content or not self.has_vector_support:
+            # Fallback to standard resizing
+            return self.image.resize((size, size), Image.Resampling.LANCZOS)
+
+        try:
+            import cairosvg
+            import io
+
+            png_data = cairosvg.svg2png(
+                bytestring=self.svg_content.encode("utf-8"),
+                output_width=size,
+                output_height=size,
+            )
+            return Image.open(io.BytesIO(png_data)).convert("RGBA")
+        except Exception:
+            # If rendering fails, fallback to standard resizing
+            return self.image.resize((size, size), Image.Resampling.LANCZOS)
 
     def generate_windows(self) -> None:
         """
@@ -49,10 +93,10 @@ class IconGenerator:
         # Create PNG data for each size
         png_data = []
         for size in sizes:
-            resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
+            resized = self._render_from_svg(size)
 
-            # Apply sharpening for small sizes
-            if size < 64:
+            # Apply sharpening for small sizes (only if not using vector rendering)
+            if size < 64 and not (self.svg_content and self.has_vector_support):
                 from PIL import ImageFilter
 
                 if size < 32:
