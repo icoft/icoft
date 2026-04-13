@@ -13,7 +13,7 @@ Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP)
 - **Icon Generation**: Complete icon sets for Windows, macOS, Linux, and Web
 - **Image Cropping**: Manual border removal with customizable margins
 - **Background Removal**: Convert solid-color backgrounds to transparent
-- **Vectorization**: High-quality PNG to SVG conversion
+- **Vectorization**: High-quality PNG to SVG conversion (vector tracing or embedded PNG)
 - **Flexible Output**: Generate full icon sets or single processed images
 - **CLI Friendly**: Unix-style composable parameters with Rich terminal output
 
@@ -46,8 +46,11 @@ icoft -m 10% -t source_file.png dest_dir/
 # Output single processed PNG
 icoft -m 10% source_file.png output.png -o png
 
-# Output single SVG (auto-vectorizes)
+# Output single SVG (auto-vectorizes with vector tracing)
 icoft source_file.png output.svg -o svg
+
+# Output single SVG with embedded PNG (preserves gradients perfectly)
+icoft source_file.png output.svg -s embed -o svg
 
 # Crop + background removal + SVG
 icoft -m 10% -t source_file.png output.svg -o svg
@@ -156,9 +159,9 @@ Options:
   -m, --crop-margin        Margin for cropping (e.g., 5%, 10px)
   -t, --transparent        Make background transparent
   -B, --bg-threshold=10    Background threshold (0-255)
-  -s, --svg                Vectorize to SVG
-  -S, --svg-speckle=10     Filter SVG noise (1-100)
-  -P, --svg-precision=6    SVG color precision (1-16)
+  -s, --svg=normal       Enable SVG output: normal (vector tracing) or embed (PNG in SVG)
+  -S, --svg-speckle=10   Filter SVG noise (1-100, only for 'normal' mode)
+  -P, --svg-precision=6  SVG color precision (1-16, only for 'normal' mode)
   -o, --output=icon        Output format: icon, png, svg
   -p, --platforms=all      Platforms: windows, macos, linux, web
   -V, --version            Show version
@@ -206,11 +209,11 @@ icoft/
 
 ## Roadmap
 
-### v0.3.0 (Current)
+### v0.3.2 (Current)
 
 - ✅ Unix-style CLI parameter design
 - ✅ Step-by-step processing control
-- ✅ Vectorization with vtracer
+- ✅ Dual-mode SVG generation: `normal` (vector tracing for lossless scaling) and `embed` (PNG embedding for gradient preservation)
 - ✅ Smart cutout improvements
 - ✅ Edge artifact removal
 - ✅ Configuration parameters with auto-enable

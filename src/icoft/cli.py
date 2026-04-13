@@ -28,7 +28,13 @@ console = Console()
 __version__ = version("icoft")
 
 
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="""Output Modes:
+  DEST_DIR              Generate full icon set for selected platforms
+  OUTPUT_FILE -o png    Save processed image as single PNG
+  OUTPUT_FILE -o svg    Save processed image as single SVG (auto-vectorizes)""",
+)
 @click.argument("source_file", type=click.Path(exists=True), required=False)
 @click.argument("dest_dir", type=click.Path(), required=False)
 @click.option(
@@ -58,10 +64,10 @@ __version__ = version("icoft")
 @click.option(
     "-s",
     "--svg",
-    "do_svg",
-    is_flag=True,
-    default=False,
-    help="Enable vectorization (PNG to SVG)",
+    "svg_mode",
+    type=click.Choice(["normal", "embed"]),
+    default=None,
+    help="Enable SVG output: normal (vector tracing, default for lossless scaling) or embed (PNG in SVG, preserves gradients)",
 )
 @click.option(
     "-S",
@@ -69,7 +75,7 @@ __version__ = version("icoft")
     "svg_speckle",
     type=int,
     default=10,
-    help="Filter SVG noise (1-100, default: 10)",
+    help="Filter SVG noise (1-100, default: 10, only for 'normal' mode)",
 )
 @click.option(
     "-P",
@@ -77,7 +83,7 @@ __version__ = version("icoft")
     "svg_precision",
     type=int,
     default=6,
-    help="SVG color precision (1-16, default: 6)",
+    help="SVG color precision (1-16, default: 6, only for normal mode)",
 )
 @click.option(
     "-o",
@@ -101,7 +107,7 @@ def main(
     crop_margin: str | None,
     do_transparent: bool,
     bg_threshold: int,
-    do_svg: bool,
+    svg_mode: str | None,
     svg_speckle: int,
     svg_precision: int,
     output_format: str,
@@ -178,7 +184,7 @@ def main(
             crop_margin is not None,
             do_transparent,
             bg_threshold != 10,
-            do_svg,
+            svg_mode is not None,
             svg_speckle != 10,
             svg_precision != 6,
         ]
@@ -190,7 +196,7 @@ def main(
         crop_margin = None
         crop_enabled = False
         transparent_enabled = False
-        do_svg = False
+        svg_mode = None
     else:
         # Enable steps based on which parameters were provided
         # -t or -B → transparent_enabled (simple background removal)
@@ -198,14 +204,21 @@ def main(
 
         # Auto-enable steps based on parameter flags
         crop_enabled = crop_margin is not None
-        do_svg = do_svg or (svg_speckle != 10 or svg_precision != 6)
+        if svg_mode is None and (svg_speckle != 10 or svg_precision != 6):
+            svg_mode = "normal"
 
     # --output=svg should auto-enable vectorization
-    if output_format == "svg" and not do_svg:
-        do_svg = True
+    if output_format == "svg" and svg_mode is None:
+        svg_mode = "normal"
         # Also enable transparent background if no other processing specified
         if not transparent_enabled:
             transparent_enabled = True
+
+    # Validate mutually exclusive parameters
+    if svg_mode == "embed" and (svg_speckle != 10 or svg_precision != 6):
+        console.print("[red]Error:[/] -S/--svg-speckle and -P/--svg-precision are only valid for 'normal' mode")
+        console.print("These parameters control vtracer settings, which are not used in 'embed' mode")
+        return
 
     # Priority 4: Determine output format
     # --output=icon (default) → generate icons
@@ -226,7 +239,7 @@ def main(
         elif output_format == "svg":
             last_step = "svg"
         elif output_format == "png":
-            if do_svg:
+            if svg_mode is not None:
                 last_step = "svg"
             elif transparent_enabled:
                 last_step = "transparent"
@@ -273,55 +286,73 @@ def main(
                 return
             step_num += 1
 
-        # Step 4: Vectorization (optional)
-        if do_svg:
-            console.print(f"[yellow]Step {step_num}:[/] Vectorizing (PNG to SVG)...")
-            try:
-                import vtracer  # type: ignore[import-untyped]
+        # Step 4: SVG generation (optional)
+        if svg_mode is not None:
+            if svg_mode == "embed":
+                # Embed PNG as base64 into SVG (preserves gradients perfectly)
+                console.print(f"[yellow]Step {step_num}:[/] Generating SVG (embedded PNG)...")
+                import base64
+                import io
 
                 img = processor.image.convert("RGBA")
-                pixels = list(img.getdata())  # type: ignore[arg-type]
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG")
+                png_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-                svg_result = vtracer.convert_pixels_to_svg(
-                    pixels,
-                    img.size,
-                    colormode="color",
-                    hierarchical="stacked",
-                    mode="spline",
-                    filter_speckle=svg_speckle,
-                    color_precision=svg_precision,
-                    corner_threshold=60,
-                    length_threshold=4.0,
-                    splice_threshold=45,
-                )
+                svg_result = f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {img.width} {img.height}" width="{img.width}" height="{img.height}">
+  <image href="data:image/png;base64,{png_base64}" width="{img.width}" height="{img.height}"/>
+</svg>"""
+            else:
+                # Vector tracing with vtracer
+                console.print(f"[yellow]Step {step_num}:[/] Vectorizing (PNG to SVG)...")
+                try:
+                    import vtracer  # type: ignore[import-untyped]
 
-                if is_single_file:
-                    last_output_path = output_path
-                else:
-                    last_output_path = output_path / f"{base_filename}.svg"
-                last_output_path.parent.mkdir(parents=True, exist_ok=True)
-                last_output_path.write_text(svg_result, encoding="utf-8")
-                console.print("[green]✓[/green] Vectorization complete")
-                console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
+                    img = processor.image.convert("RGBA")
+                    pixels = list(img.getdata())  # type: ignore[arg-type]
 
-                # Save final output if this is the last step
-                if last_step == "svg":
-                    if output_format == "png":
-                        # Save SVG result as PNG (rasterize)
-                        # For now, just save the PNG before vectorization
-                        last_output_path = (
-                            output_path if is_single_file else output_path / f"{base_filename}.png"
-                        )
-                        processor.save(last_output_path)
-                        console.print(f"\n[bold green]Success![/] PNG saved to: {last_output_path}")
-                    else:
-                        console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
+                    svg_result = vtracer.convert_pixels_to_svg(
+                        pixels,
+                        img.size,
+                        colormode="color",
+                        hierarchical="stacked",
+                        mode="spline",
+                        filter_speckle=svg_speckle,
+                        color_precision=svg_precision,
+                        corner_threshold=60,
+                        length_threshold=4.0,
+                        splice_threshold=45,
+                    )
+                except ImportError:
+                    console.print("[red]Error:[/] Vectorization requires 'vtracer' package")
+                    console.print("[dim]Install with: pip install vtracer[/dim]")
                     return
 
-            except ImportError:
-                console.print("[red]Error:[/] Vectorization requires 'vtracer' package")
-                console.print("[dim]Install with: pip install vtracer[/dim]")
+            if is_single_file:
+                last_output_path = output_path
+            else:
+                last_output_path = output_path / f"{base_filename}.svg"
+            last_output_path.parent.mkdir(parents=True, exist_ok=True)
+            last_output_path.write_text(svg_result, encoding="utf-8")
+            console.print(f"[green]✓[/green] SVG generation complete (mode: {svg_mode})")
+            console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
+
+            # Save final output if this is the last step
+            if last_step == "svg":
+                if output_format == "png":
+                    # Save SVG result as PNG (rasterize)
+                    # For now, just save the PNG before vectorization
+                    last_output_path = (
+                        output_path if is_single_file else output_path / f"{base_filename}.png"
+                    )
+                    processor.save(last_output_path)
+                    console.print(f"\n[bold green]Success![/] PNG saved to: {last_output_path}")
+                else:
+                    console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
                 return
+
+            step_num += 1
 
         # Step 5: Generate icons (default) or save PNG
         if icon_enabled:
