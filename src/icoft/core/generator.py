@@ -74,7 +74,7 @@ class IconGenerator:
         ico_data = self._create_ico_from_png(png_data, sizes)
 
         # Save ICO file
-        with open(ico_path, "wb") as f:
+        with ico_path.open("wb") as f:
             f.write(ico_data)
 
     def _create_ico_from_png(self, png_images: list[bytes], sizes: list[int]) -> bytes:
@@ -95,7 +95,7 @@ class IconGenerator:
         icon_dir = b""
         offset = 6 + 16 * len(png_images)  # Header + directory size
 
-        for png_data, size in zip(png_images, sizes):
+        for png_data, size in zip(png_images, sizes, strict=True):
             png_size = len(png_data)
 
             # ICO entry: width, height, colors, reserved, planes, bpp, size, offset
@@ -228,7 +228,7 @@ class IconGenerator:
         icns_path = output_path / "app.icns"
         icns_data = self._create_icns_from_png(png_icons)
 
-        with open(icns_path, "wb") as f:
+        with icns_path.open("wb") as f:
             f.write(icns_data)
 
     def generate_linux(self) -> None:
