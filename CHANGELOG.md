@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-04-13
+
+### Fixed
+- Use source filename for output files instead of hardcoded names (e.g., `cogist17.svg` instead of `04_vectorized.svg`)
+- Replace `open()` with `Path.open()` (PTH123)
+- Add `strict=True` to `zip()` calls (B905)
+- Fix type checking issues (crop_margin None type, vtracer imports)
+
+### Removed
+- Unused `import struct` in generator.py
+
 ## [0.3.0] - 2026-04-12
 
 ### Added
