@@ -54,3 +54,8 @@ ignore = ["E501", "T20"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+]

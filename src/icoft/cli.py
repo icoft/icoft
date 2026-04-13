@@ -240,6 +240,7 @@ def main(
         # Step 1: Crop borders
         if crop_enabled:
             console.print(f"[yellow]Step {step_num}:[/] Cropping borders...")
+            assert crop_margin is not None  # Guaranteed by crop_enabled check
             processor.crop_borders(margin=crop_margin)
             console.print("[green]✓[/green] Borders cropped")
             step_num += 1
@@ -276,10 +277,10 @@ def main(
         if do_svg:
             console.print(f"[yellow]Step {step_num}:[/] Vectorizing (PNG to SVG)...")
             try:
-                import vtracer
+                import vtracer  # type: ignore[import-untyped]
 
                 img = processor.image.convert("RGBA")
-                pixels = list(img.getdata())
+                pixels = list(img.getdata())  # type: ignore[arg-type]
 
                 svg_result = vtracer.convert_pixels_to_svg(
                     pixels,
