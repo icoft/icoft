@@ -145,6 +145,9 @@ def main(
     input_path = Path(source_file)
     output_path = Path(dest_dir)
 
+    # Get base filename without extension for output naming
+    base_filename = input_path.stem
+
     # Smart 判断：是单文件输出还是目录输出？
     # 规则：
     # 1. 如果 dest_dir 以 / 结尾 → 目录
@@ -242,7 +245,7 @@ def main(
             step_num += 1
 
             if last_step == "crop":
-                last_output_path = output_path if is_single_file else output_path / "01_cropped.png"
+                last_output_path = output_path if is_single_file else output_path / f"{base_filename}_cropped.png"
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Cropped image saved to: {last_output_path}"
@@ -260,7 +263,7 @@ def main(
 
             if last_step == "transparent":
                 last_output_path = (
-                    output_path if is_single_file else output_path / "02_transparent.png"
+                    output_path if is_single_file else output_path / f"{base_filename}_transparent.png"
                 )
                 processor.save(last_output_path)
                 console.print(
@@ -294,7 +297,7 @@ def main(
                 if is_single_file:
                     last_output_path = output_path
                 else:
-                    last_output_path = output_path / "04_vectorized.svg"
+                    last_output_path = output_path / f"{base_filename}.svg"
                 last_output_path.parent.mkdir(parents=True, exist_ok=True)
                 last_output_path.write_text(svg_result, encoding="utf-8")
                 console.print("[green]✓[/green] Vectorization complete")
@@ -306,7 +309,7 @@ def main(
                         # Save SVG result as PNG (rasterize)
                         # For now, just save the PNG before vectorization
                         last_output_path = (
-                            output_path if is_single_file else output_path / "04_vectorized.png"
+                            output_path if is_single_file else output_path / f"{base_filename}.png"
                         )
                         processor.save(last_output_path)
                         console.print(f"\n[bold green]Success![/] PNG saved to: {last_output_path}")

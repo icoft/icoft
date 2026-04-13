@@ -35,7 +35,6 @@ class IconGenerator:
         All sizes use 32-bit ARGB with PNG compression for 256x256.
         """
         import io
-        import struct
 
         output_path = self.output_dir / "windows"
         output_path.mkdir(parents=True, exist_ok=True)
