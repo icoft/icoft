@@ -219,8 +219,9 @@ icoft/
 - ✅ Configuration parameters with auto-enable
 - ✅ Single file output mode (-o png/svg)
 - ✅ Improved CLI help and error messages
+- ✅ AI-based background removal (U²-Net)
 
-### v0.4.0 (Planned)
+### v0.5.0 (Planned)
 
 - [ ] Improve edge detection for better cropping
 - [ ] Support more input formats (WEBP, AVIF)
@@ -235,7 +236,6 @@ icoft/
 - [ ] iOS icon optimization
 - [ ] Android adaptive icons
 - [ ] Full UWP/WinUI 3 support (14 sizes + 3 themes + tiles)
-- [ ] Advanced image processing (AI-based background removal)
 - [ ] CI/CD integration templates
 - [ ] GUI application (optional)
 
