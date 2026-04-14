@@ -51,7 +51,15 @@ __version__ = version("icoft")
     "do_transparent",
     is_flag=True,
     default=False,
-    help="Make background transparent",
+    help="Make background transparent (simple color-based method)",
+)
+@click.option(
+    "-A",
+    "--ai-bg",
+    "use_ai_bg",
+    is_flag=True,
+    default=False,
+    help="Use AI for background removal (U²-Net, handles complex backgrounds)",
 )
 @click.option(
     "-B",
@@ -106,6 +114,7 @@ def main(
     dest_dir: str | None,
     crop_margin: str | None,
     do_transparent: bool,
+    use_ai_bg: bool,
     bg_threshold: int,
     svg_mode: str | None,
     svg_speckle: int,
@@ -247,6 +256,9 @@ def main(
         processor = ImageProcessor(input_path)
         step_num = 1
 
+        # Determine if background processing is enabled
+        transparent_enabled = do_transparent or use_ai_bg
+
         # Determine the last step to save the final output
         # When --output=icon, always generate icons regardless of processing steps
         if icon_enabled:
@@ -284,41 +296,50 @@ def main(
                 return
 
         # Step 2: Background processing
-        # Two-phase approach: extract color before AI, refine after AI
+        # -t: Simple color-based method
+        # -A: AI-based method (U²-Net)
+        # -B: Optional refinement after AI
         if transparent_enabled:
-            # Phase 1: Extract background color BEFORE AI (while corners still have color)
-            bg_color = None
-            if bg_threshold != 10:  # Only extract if user specified -B
-                console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
-                bg_color = processor.extract_background_color()
+            if use_ai_bg:
+                # AI-based background removal
+                # Phase 1: Extract background color BEFORE AI (for optional refinement)
+                bg_color = None
+                if bg_threshold != 10:  # Only extract if user specified -B
+                    console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
+                    bg_color = processor.extract_background_color()
+                    if bg_color is not None:
+                        console.print(
+                            f"[green]✓[/green] Background color extracted: {bg_color.astype(int)}"
+                        )
+                    else:
+                        console.print(
+                            "[yellow]⚠[/yellow] No background color detected, skipping refinement"
+                        )
+
+                # Phase 2: AI-based background removal
+                console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI...")
+                try:
+                    processor.remove_background_ai()
+                    console.print("[green]✓[/green] Background removed using AI (U²-Net)")
+                except ImportError as e:
+                    console.print(f"[red]Error:[/] {e}")
+                    console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
+                    raise SystemExit(1) from None
+
+                # Phase 3: Optional color-based refinement AFTER AI
                 if bg_color is not None:
                     console.print(
-                        f"[green]✓[/green] Background color extracted: {bg_color.astype(int)}"
+                        f"[yellow]Step {step_num + 2}:[/] Applying color-based refinement (threshold={bg_threshold})..."
                     )
-                else:
+                    processor.refine_transparency(bg_color=bg_color, tolerance=bg_threshold)
                     console.print(
-                        "[yellow]⚠[/yellow] No background color detected, skipping refinement"
+                        "[green]✓[/green] Color-based refinement applied (skips already transparent pixels)"
                     )
-
-            # Phase 2: AI-based background removal (handles complex external backgrounds)
-            console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI...")
-            try:
-                processor.remove_background_ai()
-                console.print("[green]✓[/green] Background removed using AI (U²-Net)")
-            except ImportError as e:
-                console.print(f"[red]Error:[/] {e}")
-                console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
-                raise SystemExit(1) from None
-
-            # Phase 3: Optional color-based refinement AFTER AI (handles internal areas)
-            if bg_color is not None:
-                console.print(
-                    f"[yellow]Step {step_num + 2}:[/] Applying color-based refinement (threshold={bg_threshold})..."
-                )
-                processor.refine_transparency(bg_color=bg_color, tolerance=bg_threshold)
-                console.print(
-                    "[green]✓[/green] Color-based refinement applied (skips already transparent pixels)"
-                )
+            else:
+                # Simple color-based background removal (-t flag)
+                console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
+                processor.make_background_transparent(tolerance=bg_threshold)
+                console.print("[green]✓[/green] Background made transparent (color-based)")
 
             if last_step == "transparent":
                 last_output_path = (
