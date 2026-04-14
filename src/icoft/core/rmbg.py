@@ -99,6 +99,8 @@ class RMBGProcessor:
         image: Image.Image,
         threshold: int | None = None,
         denoise: Literal["none", "simple", "morphology", "aggressive"] = "none",
+        hole_fill: bool = False,
+        hole_fill_threshold: float = 0.01,
     ) -> Image.Image:
         """Remove background from image using RMBG-1.4.
 
@@ -111,6 +113,9 @@ class RMBGProcessor:
                     - "simple": Remove small isolated regions
                     - "morphology": Smooth edges with morphological operations
                     - "aggressive": Keep only largest component (may lose details)
+            hole_fill: Fill small holes inside foreground objects.
+                      Useful when RMBG incorrectly marks hollow areas as foreground.
+            hole_fill_threshold: Maximum hole size to fill, as ratio of image area (default 0.01 = 1%).
 
         Returns:
             PIL Image with transparent background (RGBA)
@@ -135,6 +140,8 @@ class RMBGProcessor:
             original_size=original_size,
             threshold=thresh,
             denoise=denoise,
+            hole_fill=hole_fill,
+            hole_fill_threshold=hole_fill_threshold,
         )
 
         return result_image
@@ -178,6 +185,8 @@ class RMBGProcessor:
         original_size: tuple[int, int],
         threshold: int = 200,
         denoise: Literal["none", "simple", "morphology", "aggressive"] = "none",
+        hole_fill: bool = False,
+        hole_fill_threshold: float = 0.01,
     ) -> Image.Image:
         """Postprocess mask and apply to original image.
 
@@ -187,6 +196,8 @@ class RMBGProcessor:
             original_size: Original image size (width, height)
             threshold: Threshold for binarizing mask (0-255)
             denoise: Denoising mode for mask cleanup
+            hole_fill: Fill small holes inside foreground
+            hole_fill_threshold: Maximum hole size to fill
 
         Returns:
             PIL Image with transparent background
@@ -209,6 +220,10 @@ class RMBGProcessor:
         # Apply denoising if requested
         if denoise != "none":
             mask_binary = self._denoise_mask(mask_binary, mode=denoise)
+
+        # Fill small holes inside foreground if requested
+        if hole_fill:
+            mask_binary = self._fill_holes(mask_binary, threshold=hole_fill_threshold)
 
         # Resize mask to original image size
         mask_pil = Image.fromarray(mask_binary)
@@ -363,3 +378,63 @@ class RMBGProcessor:
             filtered[cy, cx] = 255
 
         return filtered
+
+    def _fill_holes(self, mask: np.ndarray, threshold: float = 0.01) -> np.ndarray:
+        """Fill small holes inside foreground objects.
+
+        This is useful when RMBG incorrectly marks hollow areas (like donut holes,
+        letter openings) as foreground.
+
+        Args:
+            mask: Binary mask (0 or 255)
+            threshold: Maximum hole size to fill, as ratio of image area
+
+        Returns:
+            Mask with holes filled
+        """
+        binary = mask > 0
+        h, w = binary.shape
+        image_area = h * w
+        max_hole_size = image_area * threshold
+
+        # Invert mask to find holes (background inside foreground)
+        inverted = ~binary
+
+        # Find all background components
+        visited = np.zeros_like(inverted, dtype=bool)
+        holes = []
+
+        for y in range(h):
+            for x in range(w):
+                if inverted[y, x] and not visited[y, x]:
+                    component = []
+                    stack = [(y, x)]
+                    is_outer_background = False
+
+                    while stack:
+                        cy, cx = stack.pop()
+                        if cy < 0 or cy >= h or cx < 0 or cx >= w:
+                            continue
+                        if not inverted[cy, cx] or visited[cy, cx]:
+                            continue
+
+                        # Check if this component touches image border
+                        if cy == 0 or cy == h-1 or cx == 0 or cx == w-1:
+                            is_outer_background = True
+
+                        visited[cy, cx] = True
+                        component.append((cy, cx))
+                        stack.extend([(cy-1, cx), (cy+1, cx), (cy, cx-1), (cy, cx+1)])
+
+                    # Only keep holes (background not touching border)
+                    if not is_outer_background:
+                        holes.append(component)
+
+        # Fill small holes
+        result = mask.copy()
+        for hole in holes:
+            if len(hole) <= max_hole_size:
+                for cy, cx in hole:
+                    result[cy, cx] = 255
+
+        return result

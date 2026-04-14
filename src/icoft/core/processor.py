@@ -186,37 +186,26 @@ class ImageProcessor:
         """
         Convert single-color background to transparent.
 
+        Uses extract_background_color for robust background color estimation.
+
         Args:
             tolerance: Color tolerance for background detection (0-255).
 
         Returns:
             self for method chaining.
         """
-        img_array = np.array(self.image)
+        bg_color = self.extract_background_color()
 
-        if img_array.shape[2] == 4:
-            corners = [
-                img_array[0, 0],
-                img_array[0, -1],
-                img_array[-1, 0],
-                img_array[-1, -1],
-            ]
+        if bg_color is not None:
+            img_array = np.array(self.image)
+            alpha = img_array[:, :, 3]
+            is_background = np.all(
+                np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
+            )
+            alpha[is_background] = 0
+            img_array[:, :, 3] = alpha
+            self.image = Image.fromarray(img_array)
 
-            bg_colors = []
-            for corner in corners:
-                if corner[3] > 200:
-                    bg_colors.append(corner[:3])
-
-            if bg_colors:
-                bg_color = np.mean(bg_colors, axis=0)
-                alpha = img_array[:, :, 3]
-                is_background = np.all(
-                    np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
-                )
-                alpha[is_background] = 0
-                img_array[:, :, 3] = alpha
-
-        self.image = Image.fromarray(img_array)
         return self
 
     def resize(self, size: tuple[int, int], sharpen: bool = True) -> "ImageProcessor":
@@ -308,6 +297,8 @@ class ImageProcessor:
         model: str = "u2net",
         threshold: int | None = None,
         denoise: str = "none",
+        hole_fill: bool = False,
+        hole_fill_threshold: float = 0.01,
         erode_size: int = 10,
         post_process_mask: bool = True,
     ) -> "ImageProcessor":
@@ -326,6 +317,9 @@ class ImageProcessor:
                       Recommended: 100-128 for light icons, 180-220 for dark logos.
             denoise: Denoising mode for RMBG model only. Options: "none", "simple",
                     "morphology", "aggressive". Ignored for U²-Net.
+            hole_fill: Fill small holes inside foreground for RMBG only.
+                      Useful when model incorrectly marks hollow areas as foreground.
+            hole_fill_threshold: Maximum hole size to fill, as ratio of image area.
             erode_size: Erosion size to remove edge shadows (0-50, default: 10)
                        Larger values remove more edge artifacts but may lose detail.
                        Only used for U²-Net model.
@@ -360,6 +354,8 @@ class ImageProcessor:
                 self.image,
                 threshold=threshold,
                 denoise=denoise,  # type: ignore[arg-type]
+                hole_fill=hole_fill,
+                hole_fill_threshold=hole_fill_threshold,
             )
         else:
             raise ValueError(f"Unknown AI model: {model}. Use 'u2net' or 'rmbg'.")

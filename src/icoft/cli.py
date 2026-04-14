@@ -80,6 +80,22 @@ __version__ = version("icoft")
          "aggressive: Keep only largest component (may lose small objects!)",
 )
 @click.option(
+    "--hole-fill/--no-hole-fill",
+    "hole_fill",
+    default=False,
+    help="Fill small holes inside foreground for RMBG-1.4 only. "
+         "Useful when model incorrectly marks hollow areas as foreground. "
+         "Ignored for U²-Net. Default: disabled",
+)
+@click.option(
+    "--hole-fill-threshold",
+    "hole_fill_threshold",
+    type=float,
+    default=0.01,
+    help="Maximum hole size to fill, as ratio of image area (0.001-0.1). "
+         "Higher values fill larger holes. Default: 0.01 (1%)",
+)
+@click.option(
     "-b",
     "--bg-threshold",
     "bg_threshold",
@@ -135,6 +151,8 @@ def main(
     ai_model: str,
     ai_threshold: int | None,
     ai_denoise: str,
+    hole_fill: bool,
+    hole_fill_threshold: float,
     bg_threshold: int,
     svg_mode: str | None,
     svg_speckle: int,
@@ -351,11 +369,15 @@ def main(
                 console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI ({model_name})...")
                 if ai_denoise != "none" and ai_model == "rmbg":
                     console.print(f"[dim]  Denoise: {ai_denoise}[/dim]")
+                if hole_fill and ai_model == "rmbg":
+                    console.print(f"[dim]  Hole fill: {hole_fill_threshold:.1%}[/dim]")
                 try:
                     processor.remove_background_ai(
                         model=ai_model,
                         threshold=ai_threshold,
                         denoise=ai_denoise,
+                        hole_fill=hole_fill,
+                        hole_fill_threshold=hole_fill_threshold,
                     )
                     console.print(f"[green]✓[/green] Background removed using AI ({model_name})")
                 except ImportError as e:
