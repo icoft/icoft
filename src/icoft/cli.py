@@ -38,7 +38,7 @@ __version__ = version("icoft")
 @click.argument("source_file", type=click.Path(exists=True), required=False)
 @click.argument("dest_dir", type=click.Path(), required=False)
 @click.option(
-    "-m",
+    "-c",
     "--crop-margin",
     "crop_margin",
     type=str,
@@ -46,15 +46,14 @@ __version__ = version("icoft")
     help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
-    "-A",
-    "--ai-bg",
+    "-a",
     "use_ai_bg",
     is_flag=True,
     default=False,
-    help="Use AI for background removal (U²-Net, handles complex backgrounds)",
+    help="Use AI for background removal (U²-Net)",
 )
 @click.option(
-    "-B",
+    "-b",
     "--bg-threshold",
     "bg_threshold",
     type=int,
