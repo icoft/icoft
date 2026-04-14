@@ -54,6 +54,96 @@ class ImageProcessor:
 
         return self
 
+    def extract_background_color(self) -> np.ndarray | None:
+        """
+        Extract background color from image corners (before AI processing).
+
+        Samples multiple points around the edges to get a robust background color.
+
+        Args:
+            tolerance: Color tolerance for considering a pixel as background.
+
+        Returns:
+            Background color as RGB array, or None if no background detected.
+        """
+        img_array = np.array(self.image)
+
+        if img_array.shape[2] != 4:
+            return None
+
+        # Sample points from all four edges (not just corners)
+        height, width = img_array.shape[:2]
+        sample_points = []
+
+        # Top edge
+        for x in [0, width // 4, width // 2, 3 * width // 4, width - 1]:
+            sample_points.append(img_array[0, x])
+
+        # Bottom edge
+        for x in [0, width // 4, width // 2, 3 * width // 4, width - 1]:
+            sample_points.append(img_array[-1, x])
+
+        # Left edge
+        for y in [0, height // 4, height // 2, 3 * height // 4, height - 1]:
+            sample_points.append(img_array[y, 0])
+
+        # Right edge
+        for y in [0, height // 4, height // 2, 3 * height // 4, height - 1]:
+            sample_points.append(img_array[y, -1])
+
+        # Filter out transparent pixels and collect opaque background colors
+        bg_colors = []
+        for point in sample_points:
+            if point[3] > 200:  # Only consider opaque pixels
+                bg_colors.append(point[:3])
+
+        if not bg_colors:
+            return None
+
+        # Calculate average background color
+        bg_color = np.mean(bg_colors, axis=0)
+        return bg_color
+
+    def refine_transparency(self, bg_color: np.ndarray, tolerance: int = 10) -> "ImageProcessor":
+        """
+        Refine transparency using pre-extracted background color (after AI processing).
+
+        This applies color-based transparency but skips already transparent pixels,
+        making it safe to use after AI background removal.
+
+        Args:
+            bg_color: Pre-extracted background color (RGB).
+            tolerance: Color tolerance for background detection (0-255).
+
+        Returns:
+            self for method chaining.
+        """
+        img_array = np.array(self.image)
+
+        if img_array.shape[2] != 4:
+            return self
+
+        # Get current alpha channel
+        alpha = img_array[:, :, 3]
+
+        # Only process pixels that are currently opaque (alpha > 128)
+        # This prevents re-processing already transparent areas from AI
+        opaque_mask = alpha > 128
+
+        # Find pixels matching background color among opaque pixels
+        color_diff = np.abs(img_array[:, :, :3].astype(float) - bg_color.astype(float))
+        is_background = np.all(color_diff < tolerance, axis=2)
+
+        # Combine: must be both opaque AND match background color
+        remove_mask = opaque_mask & is_background
+
+        # Set matched pixels to transparent
+        alpha[remove_mask] = 0
+        img_array[:, :, 3] = alpha
+
+        self.image = Image.fromarray(img_array)
+        return self
+
     def make_background_transparent(self, tolerance: int = 10) -> "ImageProcessor":
         """
         Convert single-color background to transparent.
