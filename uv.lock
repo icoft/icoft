@@ -334,6 +334,7 @@ dependencies = [
     { name = "click" },
     { name = "numpy", version = "1.26.4", source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }, marker = "python_full_version >= '3.11'" },
+    { name = "onnxruntime" },
     { name = "pillow", version = "10.3.0", source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }, marker = "python_full_version < '3.11'" },
     { name = "pillow", version = "12.2.0", source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }, marker = "python_full_version >= '3.11'" },
     { name = "rich" },
@@ -341,9 +342,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-ai = [
-    { name = "onnxruntime" },
-]
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -362,14 +360,14 @@ requires-dist = [
     { name = "cairosvg", marker = "extra == 'vector'", specifier = ">=2.7.0" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "numpy", specifier = ">=1.24.0" },
-    { name = "onnxruntime", marker = "extra == 'ai'", specifier = ">=1.15.0,<1.20.0" },
+    { name = "onnxruntime", specifier = ">=1.15.0,<1.20.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "vtracer", specifier = ">=0.6.0" },
 ]
-provides-extras = ["dev", "vector", "ai"]
+provides-extras = ["dev", "vector"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pyright", specifier = ">=1.1.408" }]
