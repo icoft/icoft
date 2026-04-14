@@ -56,53 +56,91 @@ class ImageProcessor:
 
     def extract_background_color(self) -> np.ndarray | None:
         """
-        Extract background color from image corners (before AI processing).
+        Extract background color from image edges (before AI processing).
 
-        Samples multiple points around the edges to get a robust background color.
-
-        Args:
-            tolerance: Color tolerance for considering a pixel as background.
+        Randomly samples points around the edges to get a robust background color.
+        Filters out outliers to avoid watermarks or noise interference.
 
         Returns:
             Background color as RGB array, or None if no background detected.
         """
+        import random
+
         img_array = np.array(self.image)
 
         if img_array.shape[2] != 4:
             return None
 
-        # Sample points from all four edges (not just corners)
         height, width = img_array.shape[:2]
-        sample_points = []
+        num_samples = 30  # Number of random samples per edge
+        color_threshold = 15  # Threshold for considering colors similar
+
+        # Collect opaque pixels from all four edges using random sampling
+        edge_pixels = []
 
         # Top edge
-        for x in [0, width // 4, width // 2, 3 * width // 4, width - 1]:
-            sample_points.append(img_array[0, x])
+        for _ in range(num_samples):
+            x = random.randint(0, width - 1)
+            pixel = img_array[0, x]
+            if pixel[3] > 200:  # Only consider opaque pixels
+                edge_pixels.append(pixel[:3])
 
         # Bottom edge
-        for x in [0, width // 4, width // 2, 3 * width // 4, width - 1]:
-            sample_points.append(img_array[-1, x])
+        for _ in range(num_samples):
+            x = random.randint(0, width - 1)
+            pixel = img_array[-1, x]
+            if pixel[3] > 200:
+                edge_pixels.append(pixel[:3])
 
         # Left edge
-        for y in [0, height // 4, height // 2, 3 * height // 4, height - 1]:
-            sample_points.append(img_array[y, 0])
+        for _ in range(num_samples):
+            y = random.randint(0, height - 1)
+            pixel = img_array[y, 0]
+            if pixel[3] > 200:
+                edge_pixels.append(pixel[:3])
 
         # Right edge
-        for y in [0, height // 4, height // 2, 3 * height // 4, height - 1]:
-            sample_points.append(img_array[y, -1])
+        for _ in range(num_samples):
+            y = random.randint(0, height - 1)
+            pixel = img_array[y, -1]
+            if pixel[3] > 200:
+                edge_pixels.append(pixel[:3])
 
-        # Filter out transparent pixels and collect opaque background colors
-        bg_colors = []
-        for point in sample_points:
-            if point[3] > 200:  # Only consider opaque pixels
-                bg_colors.append(point[:3])
-
-        if not bg_colors:
+        # Check if we have enough opaque pixels
+        if len(edge_pixels) < 10:  # Need at least 10 opaque pixels
             return None
 
-        # Calculate average background color
-        bg_color = np.mean(bg_colors, axis=0)
-        return bg_color
+        # Convert to numpy array for easier processing
+        pixels_array = np.array(edge_pixels)
+
+        # Find the dominant color cluster
+        # Use the first pixel as reference and find similar pixels
+        reference_color = pixels_array[0]
+        similar_mask = np.all(
+            np.abs(pixels_array.astype(float) - reference_color.astype(float)) < color_threshold,
+            axis=1,
+        )
+        similar_pixels = pixels_array[similar_mask]
+
+        # If the majority are similar, use them; otherwise try different reference
+        if len(similar_pixels) >= len(pixels_array) * 0.6:  # At least 60% are similar
+            bg_color = np.mean(similar_pixels, axis=0)
+            return bg_color
+
+        # Try with median pixel as reference (more robust)
+        median_color = np.median(pixels_array, axis=0)
+        similar_mask = np.all(
+            np.abs(pixels_array.astype(float) - median_color.astype(float)) < color_threshold,
+            axis=1,
+        )
+        similar_pixels = pixels_array[similar_mask]
+
+        if len(similar_pixels) >= len(pixels_array) * 0.6:
+            bg_color = np.mean(similar_pixels, axis=0)
+            return bg_color
+
+        # If still no clear majority, return None (background too complex)
+        return None
 
     def refine_transparency(self, bg_color: np.ndarray, tolerance: int = 10) -> "ImageProcessor":
         """
