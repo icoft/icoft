@@ -64,15 +64,15 @@ class U2NetProcessor:
     def remove_background(
         self,
         image: Image.Image,
-        erode_size: int = 0,
-        post_process_mask: bool = True,
+        erode_size: int = 0,  # noqa: ARG002
+        post_process_mask: bool = True,  # noqa: ARG002
     ) -> Image.Image:
         """Remove background from image using U²-Net.
 
         Args:
             image: Input PIL Image (RGB or RGBA)
-            erode_size: Erosion size to remove edge shadows (0-50, larger=more erosion)
-            post_process_mask: Enable mask post-processing for smoother edges
+            erode_size: Erosion size to remove edge shadows (currently unused)
+            post_process_mask: Enable mask post-processing (currently unused)
 
         Returns:
             PIL Image with transparent background (RGBA)
@@ -129,16 +129,16 @@ class U2NetProcessor:
         self,
         original: Image.Image,
         mask: np.ndarray,
-        erode_size: int = 0,
-        post_process_mask: bool = True,
+        erode_size: int = 0,  # noqa: ARG002
+        post_process_mask: bool = True,  # noqa: ARG002
     ) -> Image.Image:
         """Postprocess mask and apply to original image.
 
         Args:
             original: Original PIL Image
             mask: Predicted mask (H, W) with values in [0, 1]
-            erode_size: Erosion size to remove edge shadows
-            post_process_mask: Enable mask post-processing
+            erode_size: Erosion size to remove edge shadows (currently unused)
+            post_process_mask: Enable mask post-processing (currently unused)
 
         Returns:
             PIL Image with transparent background
@@ -148,36 +148,6 @@ class U2NetProcessor:
         mask_pil = Image.fromarray(mask_uint8)
         mask_resized = mask_pil.resize(original.size, Image.Resampling.BILINEAR)
         mask_array = np.array(mask_resized)
-
-        # Smart edge refinement: use original image colors to clean up AI artifacts
-        # Get the original image as numpy array
-        if original.mode != "RGBA":
-            original_rgb = original.convert("RGB")
-        else:
-            original_rgb = original.convert("RGB")
-        
-        original_array = np.array(original_rgb)
-        
-        # Detect background color from corners (assuming corners are background)
-        h, w = original_array.shape[:2]
-        corner_samples = [
-            original_array[0, 0],
-            original_array[0, w-1],
-            original_array[h-1, 0],
-            original_array[h-1, w-1],
-        ]
-        bg_color = np.mean(corner_samples, axis=0)
-        
-        # For uncertain edge regions (128-200), check if they match background color
-        # If yes, make them transparent even if model says they're foreground
-        uncertain_mask = (mask_array > 128) & (mask_array < 200)
-        if np.any(uncertain_mask):
-            # Calculate color distance to background
-            color_diff = np.abs(original_array.astype(float) - bg_color)
-            is_bg_color = np.all(color_diff < 40, axis=2)  # Tolerance of 40
-            
-            # Make uncertain regions transparent if they match background color
-            mask_array[uncertain_mask & is_bg_color] = 0
 
         mask_pil_clean = Image.fromarray(mask_array.astype(np.uint8))
 
