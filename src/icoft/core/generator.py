@@ -4,7 +4,7 @@ import io
 import struct
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image
 
 
 class IconGenerator:
@@ -33,14 +33,10 @@ class IconGenerator:
 
     def _check_vector_support(self) -> bool:
         """Check if cairosvg is available for vector-based rendering."""
-        try:
-            import cairosvg
+        import importlib.util
 
-            self.has_vector_support = True
-            return True
-        except ImportError:
-            self.has_vector_support = False
-            return False
+        self.has_vector_support = importlib.util.find_spec("cairosvg") is not None
+        return self.has_vector_support
 
     def _render_from_svg(self, size: int) -> Image.Image:
         """
@@ -57,14 +53,17 @@ class IconGenerator:
             return self.image.resize((size, size), Image.Resampling.LANCZOS)
 
         try:
-            import cairosvg
             import io
+
+            import cairosvg  # type: ignore[import-untyped]
 
             png_data = cairosvg.svg2png(
                 bytestring=self.svg_content.encode("utf-8"),
                 output_width=size,
                 output_height=size,
             )
+            if png_data is None:
+                raise ValueError("cairosvg.svg2png returned None")
             return Image.open(io.BytesIO(png_data)).convert("RGBA")
         except Exception:
             # If rendering fails, fallback to standard resizing
