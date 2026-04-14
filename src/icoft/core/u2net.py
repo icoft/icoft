@@ -93,8 +93,8 @@ class U2NetProcessor:
             Preprocessed numpy array (1, 3, H, W)
         """
         # Convert to RGB if needed
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        if image.mode != "RGB":
+            image = image.convert("RGB")
 
         # Resize to model input size
         resized = image.resize((input_size, input_size), Image.Resampling.LANCZOS)
@@ -125,18 +125,15 @@ class U2NetProcessor:
         """
         # Resize mask to original image size
         mask_pil = Image.fromarray((mask * 255).astype(np.uint8))
-        mask_resized = mask_pil.resize(
-            original.size,
-            Image.Resampling.BILINEAR
-        )
+        mask_resized = mask_pil.resize(original.size, Image.Resampling.BILINEAR)
 
         # Ensure original is RGBA
-        if original.mode != 'RGBA':
-            original = original.convert('RGBA')
+        if original.mode != "RGBA":
+            original = original.convert("RGBA")
 
         # Apply mask as alpha channel
         r, g, b, a = original.split()
         a = mask_resized
-        result = Image.merge('RGBA', (r, g, b, a))
+        result = Image.merge("RGBA", (r, g, b, a))
 
         return result
