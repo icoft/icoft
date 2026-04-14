@@ -1,17 +1,17 @@
-"""Command-line interface for Icoft - Icon Forge.
+"""Icoft - From Single Image to Full-Platform App Icons or use -o png/svg to output intermediate picture for checking preprocessing results
 
 Examples:
   # Generate full icon set
   icoft source_file.png dest_dir/
 
   # Crop and generate icons
-  icoft -m 10% source_file.png dest_dir/
+  icoft -c 10% source_file.png dest_dir/
 
   # Crop + background removal + icons
-  icoft -m 10% -t source_file.png dest_dir/
+  icoft -c 10% -a source_file.png dest_dir/
 
   # Output single processed PNG
-  icoft -m 10% source_file.png output.png -o png
+  icoft -c 10% source_file.png output.png -o png
 
   # Output single SVG (auto-vectorizes)
   icoft source_file.png output.svg -o svg
@@ -30,13 +30,25 @@ __version__ = version("icoft")
 
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
-    epilog="""Output Modes:
-  DEST_DIR              Generate full icon set for selected platforms
-  OUTPUT_FILE -o png    Save processed image as single PNG
-  OUTPUT_FILE -o svg    Save processed image as single SVG (auto-vectorizes)""",
+    help="From Single Image to Full-Platform App Icons, use -o png/svg to output intermediate PNG/SVG for checking preprocessing results.",
 )
-@click.argument("source_file", type=click.Path(exists=True), required=False)
-@click.argument("dest_dir", type=click.Path(), required=False)
+@click.argument("source_file", type=click.Path(exists=True), required=False, metavar="SOURCE_FILE")
+@click.argument("dest_dir", type=click.Path(), required=False, metavar="DEST_DIR|DEST_FILE")
+@click.option(
+    "-a",
+    "use_ai_bg",
+    is_flag=True,
+    default=False,
+    help="Use AI (U²-Net) for background removal",
+)
+@click.option(
+    "-b",
+    "--bg-threshold",
+    "bg_threshold",
+    type=int,
+    default=0,
+    help="Enable simple color-based background removal with threshold (0-255)",
+)
 @click.option(
     "-c",
     "--crop-margin",
@@ -46,62 +58,19 @@ __version__ = version("icoft")
     help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
-    "-a",
-    "use_ai_bg",
-    is_flag=True,
-    default=False,
-    help="Use AI for background removal",
+    "-o",
+    "--output",
+    "output_format",
+    type=click.Choice(["png", "svg", "icon"]),
+    default="icon",
+    help="Output format: icon (directory, default), png (single file), svg (single file)",
 )
 @click.option(
-    "--ai-model",
-    "ai_model",
-    type=click.Choice(["u2net", "rmbg"]),
-    default="u2net",
-    help="AI model for background removal: u2net (fast, 5MB) or rmbg (better quality, 45MB). Default: u2net",
-)
-@click.option(
-    "--ai-threshold",
-    "ai_threshold",
-    type=int,
-    default=None,
-    help="Threshold for RMBG-1.4 model only (0-255). Ignored for U²-Net. "
-         "Auto-detected based on image brightness if not specified. "
-         "Lower values = more aggressive removal. Recommended: 100-128 for light icons, 180-220 for dark logos",
-)
-@click.option(
-    "--ai-denoise",
-    "ai_denoise",
-    type=click.Choice(["none", "simple", "morphology", "aggressive"]),
-    default="none",
-    help="Denoising mode for RMBG-1.4 only. Ignored for U²-Net. "
-         "none: No denoising (default). "
-         "simple: Remove small isolated noise regions. "
-         "morphology: Smooth edges with morphological operations. "
-         "aggressive: Keep only largest component (may lose small objects!)",
-)
-@click.option(
-    "--hole-fill/--no-hole-fill",
-    "hole_fill",
-    default=False,
-    help="Fill small holes inside foreground for RMBG-1.4 only. "
-         "Useful when model incorrectly marks hollow areas as foreground. "
-         "Ignored for U²-Net. Default: disabled",
-)
-@click.option(
-    "--hole-fill-threshold",
-    "hole_fill_threshold",
-    type=float,
-    default=0.01,
-    help="Maximum hole size to fill, as ratio of image area (0.001-0.1). "
-         "Higher values fill larger holes. Default: 0.01 (1%)",
-)
-@click.option(
-    "-b",
-    "--bg-threshold",
-    "bg_threshold",
-    type=int,
-    default=0,
-    help="Enable simple color-based background removal with threshold (0-255, default: 10 when enabled)",
+    "-p",
+    "--platforms",
+    type=str,
+    default="all",
+    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
 )
 @click.option(
     "-s",
@@ -117,7 +86,7 @@ __version__ = version("icoft")
     "svg_speckle",
     type=int,
     default=10,
-    help="Filter SVG noise (1-100, default: 10, only for 'normal' mode)",
+    help="Filter SVG noise (1-100, default: 10, only for normal mode)",
 )
 @click.option(
     "-P",
@@ -127,42 +96,20 @@ __version__ = version("icoft")
     default=6,
     help="SVG color precision (1-16, default: 6, only for normal mode)",
 )
-@click.option(
-    "-o",
-    "--output",
-    "output_format",
-    type=click.Choice(["png", "svg", "icon"]),
-    default="icon",
-    help="Output format: icon (directory), png (single file), svg (single file)",
-)
-@click.option(
-    "-p",
-    "--platforms",
-    type=str,
-    default="all",
-    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
-)
 @click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
     source_file: str | None,
     dest_dir: str | None,
-    crop_margin: str | None,
     use_ai_bg: bool,
-    ai_model: str,
-    ai_threshold: int | None,
-    ai_denoise: str,
-    hole_fill: bool,
-    hole_fill_threshold: float,
     bg_threshold: int,
+    crop_margin: str | None,
+    output_format: str,
+    platforms: str,
     svg_mode: str | None,
     svg_speckle: int,
     svg_precision: int,
-    output_format: str,
-    platforms: str,
     show_version: bool,
 ) -> None:
-    """Icoft - From Single Image to Full-Platform App Icons."""
-
     # Handle --version flag
     if show_version:
         console.print(f"[bold blue]icoft[/bold blue] [dim]v{__version__}[/dim]")
@@ -240,7 +187,6 @@ def main(
             crop_margin is not None,
             bg_threshold != 0,
             use_ai_bg,
-            ai_threshold is not None,
             svg_mode is not None,
             svg_speckle != 10,
             svg_precision != 6,
@@ -302,7 +248,6 @@ def main(
         from icoft.core.processor import ImageProcessor
 
         processor = ImageProcessor(input_path)
-        step_num = 1
 
         # Determine if background processing is enabled
         transparent_enabled = bg_threshold != 0 or use_ai_bg
@@ -325,13 +270,12 @@ def main(
         else:
             last_step = "icon"
 
-        # Step 1: Crop borders
+        # Crop borders
         if crop_enabled:
-            console.print(f"[yellow]Step {step_num}:[/] Cropping borders...")
+            console.print("[yellow]Cropping borders...[/]")
             assert crop_margin is not None  # Guaranteed by crop_enabled check
             processor.crop_borders(margin=crop_margin)
             console.print("[green]✓[/green] Borders cropped")
-            step_num += 1
 
             if last_step == "crop":
                 last_output_path = (
@@ -343,7 +287,7 @@ def main(
                 )
                 return
 
-        # Step 2: Background processing
+        # Background processing
         # -B: Simple color-based method
         # -A: AI-based method (U²-Net)
         # -A -B: AI + refinement
@@ -353,7 +297,7 @@ def main(
                 # Phase 1: Extract background color BEFORE AI (for optional refinement)
                 bg_color = None
                 if bg_threshold != 0:  # -B specified with AI for refinement
-                    console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
+                    console.print("[yellow]Extracting background color...[/]")
                     bg_color = processor.extract_background_color()
                     if bg_color is not None:
                         console.print(
@@ -365,21 +309,10 @@ def main(
                         )
 
                 # Phase 2: AI-based background removal
-                model_name = "U²-Net" if ai_model == "u2net" else "RMBG-1.4"
-                console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI ({model_name})...")
-                if ai_denoise != "none" and ai_model == "rmbg":
-                    console.print(f"[dim]  Denoise: {ai_denoise}[/dim]")
-                if hole_fill and ai_model == "rmbg":
-                    console.print(f"[dim]  Hole fill: {hole_fill_threshold:.1%}[/dim]")
+                console.print("[yellow]Removing background with AI (U²-Net)...[/]")
                 try:
-                    processor.remove_background_ai(
-                        model=ai_model,
-                        threshold=ai_threshold,
-                        denoise=ai_denoise,
-                        hole_fill=hole_fill,
-                        hole_fill_threshold=hole_fill_threshold,
-                    )
-                    console.print(f"[green]✓[/green] Background removed using AI ({model_name})")
+                    processor.remove_background_ai()
+                    console.print("[green]✓[/green] Background removed using AI (U²-Net)")
                 except ImportError as e:
                     console.print(f"[red]Error:[/] {e}")
                     console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
@@ -388,7 +321,7 @@ def main(
                 # Phase 3: Optional color-based refinement AFTER AI
                 if bg_color is not None:
                     console.print(
-                        f"[yellow]Step {step_num + 2}:[/] Applying color-based refinement (threshold={bg_threshold})..."
+                        f"[yellow]Applying color-based refinement (threshold={bg_threshold})...[/]"
                     )
                     processor.refine_transparency(bg_color=bg_color, tolerance=bg_threshold)
                     console.print(
@@ -397,7 +330,7 @@ def main(
             else:
                 # Simple color-based background removal (-B flag)
                 threshold = bg_threshold if bg_threshold != 0 else 10  # Default to 10 if just -B
-                console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
+                console.print("[yellow]Making background transparent...[/]")
                 processor.make_background_transparent(tolerance=threshold)
                 console.print(
                     f"[green]✓[/green] Background made transparent (color-based, threshold={threshold})"
@@ -405,23 +338,20 @@ def main(
 
             if last_step == "transparent":
                 last_output_path = (
-                    output_path
-                    if is_single_file
-                    else output_path / f"{base_filename}.png"
+                    output_path if is_single_file else output_path / f"{base_filename}.png"
                 )
                 processor.save(last_output_path)
                 console.print(
                     f"\n[bold green]Success![/] Transparent PNG saved to: {last_output_path}"
                 )
                 return
-            step_num += 1
 
-        # Step 4: SVG generation (optional)
+        # SVG generation (optional)
         svg_content_for_generator = None
         if svg_mode is not None:
             if svg_mode == "embed":
                 # Embed PNG as base64 into SVG (preserves gradients perfectly)
-                console.print(f"[yellow]Step {step_num}:[/] Generating SVG (embedded PNG)...")
+                console.print("[yellow]Generating SVG (embedded PNG)...[/]")
                 import base64
                 import io
 
@@ -436,7 +366,7 @@ def main(
 </svg>"""
             else:
                 # Vector tracing with vtracer
-                console.print(f"[yellow]Step {step_num}:[/] Vectorizing (PNG to SVG)...")
+                console.print("[yellow]Vectorizing (PNG to SVG)...[/]")
                 try:
                     import re
 
@@ -500,9 +430,7 @@ def main(
                     console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
                 return
 
-            step_num += 1
-
-        # Step 5: Generate icons (default) or save PNG
+        # Generate icons (default) or save PNG
         if icon_enabled:
             from icoft.core.generator import IconGenerator
 

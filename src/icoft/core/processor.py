@@ -294,92 +294,34 @@ class ImageProcessor:
 
     def remove_background_ai(
         self,
-        model: str = "u2net",
-        threshold: int | None = None,
-        denoise: str = "none",
-        hole_fill: bool = False,
-        hole_fill_threshold: float = 0.01,
         erode_size: int = 10,
         post_process_mask: bool = True,
     ) -> "ImageProcessor":
         """
-        Remove background using AI (U²-Net or RMBG-1.4 via ONNX Runtime).
+        Remove background using AI (U²-Net via ONNX Runtime).
 
         This method uses a deep learning model to intelligently separate
         foreground from background, handling complex backgrounds that simple
         color-based methods cannot handle.
 
         Args:
-            model: AI model to use - "u2net" (fast, 5MB) or "rmbg" (better quality, 45MB)
-            threshold: Threshold for binarizing mask (0-255). Only used for RMBG model.
-                      If None, auto-detected based on image brightness.
-                      Lower values = more aggressive background removal.
-                      Recommended: 100-128 for light icons, 180-220 for dark logos.
-            denoise: Denoising mode for RMBG model only. Options: "none", "simple",
-                    "morphology", "aggressive". Ignored for U²-Net.
-            hole_fill: Fill small holes inside foreground for RMBG only.
-                      Useful when model incorrectly marks hollow areas as foreground.
-            hole_fill_threshold: Maximum hole size to fill, as ratio of image area.
             erode_size: Erosion size to remove edge shadows (0-50, default: 10)
                        Larger values remove more edge artifacts but may lose detail.
-                       Only used for U²-Net model.
             post_process_mask: Enable Gaussian blur for smoother edges (default: True).
-                              Only used for U²-Net model.
 
         Returns:
             self for method chaining.
 
         Raises:
             ImportError: If onnxruntime is not installed.
-            ValueError: If model is not "u2net" or "rmbg".
         """
-        if model == "u2net":
-            from .u2net import U2NetProcessor
+        from .u2net import U2NetProcessor
 
-            processor = U2NetProcessor()
-            self.image = processor.remove_background(
-                self.image,
-                erode_size=erode_size,
-                post_process_mask=post_process_mask,
-            )
-        elif model == "rmbg":
-            from .rmbg import RMBGProcessor
-
-            # Auto-detect threshold if not specified
-            if threshold is None:
-                threshold = self._detect_optimal_threshold()
-
-            processor = RMBGProcessor(threshold=threshold)
-            self.image = processor.remove_background(
-                self.image,
-                threshold=threshold,
-                denoise=denoise,  # type: ignore[arg-type]
-                hole_fill=hole_fill,
-                hole_fill_threshold=hole_fill_threshold,
-            )
-        else:
-            raise ValueError(f"Unknown AI model: {model}. Use 'u2net' or 'rmbg'.")
+        processor = U2NetProcessor()
+        self.image = processor.remove_background(
+            self.image,
+            erode_size=erode_size,
+            post_process_mask=post_process_mask,
+        )
 
         return self
-
-    def _detect_optimal_threshold(self) -> int:
-        """Detect optimal threshold for RMBG based on image brightness.
-
-        Returns:
-            Recommended threshold value (100-220).
-        """
-        # Convert to grayscale and calculate mean brightness
-        gray = self.image.convert("L")
-        mean_brightness = np.mean(np.array(gray))
-
-        # For dark images (low brightness), use higher threshold
-        # For bright images (high brightness), use lower threshold
-        if mean_brightness < 100:
-            # Dark image - likely dark foreground on light background
-            return 200
-        elif mean_brightness > 200:
-            # Bright image - likely light foreground on gray background
-            return 120
-        else:
-            # Medium brightness - use middle threshold
-            return 180
