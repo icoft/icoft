@@ -12,9 +12,16 @@ Key differences from U²-Net:
 Recommended threshold values:
 - 100-128: For light foreground on gray background (e.g., white icons)
 - 180-220: For dark foreground on light background (e.g., dark logos)
+
+Denoise modes:
+- "none": No denoising (default)
+- "simple": Remove small isolated noise regions (keep components > 5% of largest)
+- "morphology": Apply morphological opening/closing to smooth edges
+- "aggressive": Keep only the largest connected component (may lose small objects)
 """
 
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from PIL import Image
@@ -91,6 +98,7 @@ class RMBGProcessor:
         self,
         image: Image.Image,
         threshold: int | None = None,
+        denoise: Literal["none", "simple", "morphology", "aggressive"] = "none",
     ) -> Image.Image:
         """Remove background from image using RMBG-1.4.
 
@@ -98,6 +106,11 @@ class RMBGProcessor:
             image: Input PIL Image (RGB or RGBA)
             threshold: Optional override for threshold (0-255).
                       If None, uses the instance default.
+            denoise: Denoising mode to clean up mask artifacts:
+                    - "none": No denoising (default)
+                    - "simple": Remove small isolated regions
+                    - "morphology": Smooth edges with morphological operations
+                    - "aggressive": Keep only largest component (may lose details)
 
         Returns:
             PIL Image with transparent background (RGBA)
@@ -121,6 +134,7 @@ class RMBGProcessor:
             mask,
             original_size=original_size,
             threshold=thresh,
+            denoise=denoise,
         )
 
         return result_image
@@ -163,6 +177,7 @@ class RMBGProcessor:
         mask: np.ndarray,
         original_size: tuple[int, int],
         threshold: int = 200,
+        denoise: Literal["none", "simple", "morphology", "aggressive"] = "none",
     ) -> Image.Image:
         """Postprocess mask and apply to original image.
 
@@ -171,6 +186,7 @@ class RMBGProcessor:
             mask: Predicted mask (H, W) with raw model output values
             original_size: Original image size (width, height)
             threshold: Threshold for binarizing mask (0-255)
+            denoise: Denoising mode for mask cleanup
 
         Returns:
             PIL Image with transparent background
@@ -190,6 +206,10 @@ class RMBGProcessor:
         # Values above threshold become 255 (opaque)
         mask_binary = np.where(mask_uint8 < threshold, 0, 255).astype(np.uint8)
 
+        # Apply denoising if requested
+        if denoise != "none":
+            mask_binary = self._denoise_mask(mask_binary, mode=denoise)
+
         # Resize mask to original image size
         mask_pil = Image.fromarray(mask_binary)
         mask_resized = mask_pil.resize(original_size, Image.Resampling.BILINEAR)
@@ -203,3 +223,143 @@ class RMBGProcessor:
         result = Image.merge("RGBA", (r, g, b, mask_resized))
 
         return result
+
+    def _denoise_mask(
+        self,
+        mask: np.ndarray,
+        mode: Literal["simple", "morphology", "aggressive"],
+    ) -> np.ndarray:
+        """Apply denoising to binary mask.
+
+        Args:
+            mask: Binary mask (0 or 255)
+            mode: Denoising mode
+
+        Returns:
+            Denoised mask
+        """
+        if mode == "simple":
+            return self._denoise_simple(mask)
+        elif mode == "morphology":
+            return self._denoise_morphology(mask)
+        elif mode == "aggressive":
+            return self._denoise_aggressive(mask)
+        else:
+            return mask
+
+    def _denoise_simple(self, mask: np.ndarray) -> np.ndarray:
+        """Simple denoising: remove small isolated regions.
+
+        Keeps connected components that are at least 5% of the largest component.
+        """
+        binary = mask > 0
+        h, w = binary.shape
+        visited = np.zeros_like(binary, dtype=bool)
+        components = []
+
+        # Find all connected components using flood fill
+        for y in range(h):
+            for x in range(w):
+                if binary[y, x] and not visited[y, x]:
+                    # Flood fill this component
+                    component = []
+                    stack = [(y, x)]
+                    while stack:
+                        cy, cx = stack.pop()
+                        if cy < 0 or cy >= h or cx < 0 or cx >= w:
+                            continue
+                        if not binary[cy, cx] or visited[cy, cx]:
+                            continue
+                        visited[cy, cx] = True
+                        component.append((cy, cx))
+                        stack.extend([(cy-1, cx), (cy+1, cx), (cy, cx-1), (cy, cx+1)])
+                    components.append(component)
+
+        if not components:
+            return mask
+
+        # Find largest component
+        sizes = [len(c) for c in components]
+        largest_size = max(sizes)
+        min_size = largest_size * 0.05  # Keep components > 5% of largest
+
+        # Create filtered mask
+        filtered = np.zeros_like(mask)
+        for component in components:
+            if len(component) >= min_size:
+                for cy, cx in component:
+                    filtered[cy, cx] = 255
+
+        return filtered
+
+    def _denoise_morphology(self, mask: np.ndarray) -> np.ndarray:
+        """Morphological denoising: opening then closing.
+
+        Opening (erosion + dilation) removes small noise.
+        Closing (dilation + erosion) fills small holes.
+        """
+        binary = mask > 0
+        h, w = binary.shape
+
+        # Erosion (remove border pixels)
+        eroded = np.zeros_like(binary)
+        for y in range(1, h-1):
+            for x in range(1, w-1):
+                eroded[y, x] = (
+                    binary[y-1, x] and binary[y+1, x] and
+                    binary[y, x-1] and binary[y, x+1] and
+                    binary[y, x]
+                )
+
+        # Dilation (add border pixels back)
+        dilated = np.zeros_like(binary)
+        for y in range(1, h-1):
+            for x in range(1, w-1):
+                dilated[y, x] = (
+                    eroded[y-1, x] or eroded[y+1, x] or
+                    eroded[y, x-1] or eroded[y, x+1] or
+                    eroded[y, x]
+                )
+
+        return (dilated * 255).astype(np.uint8)
+
+    def _denoise_aggressive(self, mask: np.ndarray) -> np.ndarray:
+        """Aggressive denoising: keep only the largest component.
+
+        Warning: This may lose small objects or details!
+        """
+        binary = mask > 0
+        h, w = binary.shape
+        visited = np.zeros_like(binary, dtype=bool)
+        components = []
+
+        # Find all connected components
+        for y in range(h):
+            for x in range(w):
+                if binary[y, x] and not visited[y, x]:
+                    component = []
+                    stack = [(y, x)]
+                    while stack:
+                        cy, cx = stack.pop()
+                        if cy < 0 or cy >= h or cx < 0 or cx >= w:
+                            continue
+                        if not binary[cy, cx] or visited[cy, cx]:
+                            continue
+                        visited[cy, cx] = True
+                        component.append((cy, cx))
+                        stack.extend([(cy-1, cx), (cy+1, cx), (cy, cx-1), (cy, cx+1)])
+                    components.append(component)
+
+        if not components:
+            return mask
+
+        # Find largest component
+        sizes = [len(c) for c in components]
+        largest_idx = sizes.index(max(sizes))
+
+        # Keep only largest component
+        filtered = np.zeros_like(mask)
+        for cy, cx in components[largest_idx]:
+            filtered[cy, cx] = 255
+
+        return filtered

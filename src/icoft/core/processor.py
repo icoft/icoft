@@ -307,6 +307,7 @@ class ImageProcessor:
         self,
         model: str = "u2net",
         threshold: int | None = None,
+        denoise: str = "none",
         erode_size: int = 10,
         post_process_mask: bool = True,
     ) -> "ImageProcessor":
@@ -323,6 +324,8 @@ class ImageProcessor:
                       If None, auto-detected based on image brightness.
                       Lower values = more aggressive background removal.
                       Recommended: 100-128 for light icons, 180-220 for dark logos.
+            denoise: Denoising mode for RMBG model only. Options: "none", "simple",
+                    "morphology", "aggressive". Ignored for U²-Net.
             erode_size: Erosion size to remove edge shadows (0-50, default: 10)
                        Larger values remove more edge artifacts but may lose detail.
                        Only used for U²-Net model.
@@ -353,7 +356,11 @@ class ImageProcessor:
                 threshold = self._detect_optimal_threshold()
 
             processor = RMBGProcessor(threshold=threshold)
-            self.image = processor.remove_background(self.image, threshold=threshold)
+            self.image = processor.remove_background(
+                self.image,
+                threshold=threshold,
+                denoise=denoise,  # type: ignore[arg-type]
+            )
         else:
             raise ValueError(f"Unknown AI model: {model}. Use 'u2net' or 'rmbg'.")
 

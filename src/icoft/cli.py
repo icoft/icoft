@@ -69,6 +69,17 @@ __version__ = version("icoft")
          "Lower values = more aggressive removal. Recommended: 100-128 for light icons, 180-220 for dark logos",
 )
 @click.option(
+    "--ai-denoise",
+    "ai_denoise",
+    type=click.Choice(["none", "simple", "morphology", "aggressive"]),
+    default="none",
+    help="Denoising mode for RMBG-1.4 only. Ignored for U²-Net. "
+         "none: No denoising (default). "
+         "simple: Remove small isolated noise regions. "
+         "morphology: Smooth edges with morphological operations. "
+         "aggressive: Keep only largest component (may lose small objects!)",
+)
+@click.option(
     "-b",
     "--bg-threshold",
     "bg_threshold",
@@ -123,6 +134,7 @@ def main(
     use_ai_bg: bool,
     ai_model: str,
     ai_threshold: int | None,
+    ai_denoise: str,
     bg_threshold: int,
     svg_mode: str | None,
     svg_speckle: int,
@@ -167,6 +179,15 @@ def main(
 
     input_path = Path(source_file)
     output_path = Path(dest_dir)
+
+    # Validate source_file is a file, not a directory
+    if input_path.is_dir():
+        console.print(f"[red]Error:[/] Source file is a directory: {source_file}")
+        console.print("  Please specify an image file, not a directory.")
+        console.print("\n[bold blue]Examples:[/]")
+        console.print("  icoft logo.png icons/              # Process single image")
+        console.print("  icoft -a logo.png output/          # AI background removal")
+        raise SystemExit(1)
 
     # Get base filename without extension for output naming
     base_filename = input_path.stem
@@ -328,10 +349,13 @@ def main(
                 # Phase 2: AI-based background removal
                 model_name = "U²-Net" if ai_model == "u2net" else "RMBG-1.4"
                 console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI ({model_name})...")
+                if ai_denoise != "none" and ai_model == "rmbg":
+                    console.print(f"[dim]  Denoise: {ai_denoise}[/dim]")
                 try:
                     processor.remove_background_ai(
                         model=ai_model,
                         threshold=ai_threshold,
+                        denoise=ai_denoise,
                     )
                     console.print(f"[green]✓[/green] Background removed using AI ({model_name})")
                 except ImportError as e:
