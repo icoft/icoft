@@ -303,13 +303,22 @@ class ImageProcessor:
         new_image.paste(self.image, (margin_pixels, margin_pixels))
         self.image = new_image
 
-    def remove_background_ai(self) -> "ImageProcessor":
+    def remove_background_ai(
+        self,
+        erode_size: int = 10,
+        post_process_mask: bool = True,
+    ) -> "ImageProcessor":
         """
         Remove background using AI (U²-Net via ONNX Runtime).
 
         This method uses a lightweight deep learning model to intelligently
         separate foreground from background, handling complex backgrounds
         that simple color-based methods cannot handle.
+
+        Args:
+            erode_size: Erosion size to remove edge shadows (0-50, default: 10)
+                       Larger values remove more edge artifacts but may lose detail
+            post_process_mask: Enable Gaussian blur for smoother edges (default: True)
 
         Returns:
             self for method chaining.
@@ -320,5 +329,9 @@ class ImageProcessor:
         from .u2net import U2NetProcessor
 
         processor = U2NetProcessor()
-        self.image = processor.remove_background(self.image)
+        self.image = processor.remove_background(
+            self.image,
+            erode_size=erode_size,
+            post_process_mask=post_process_mask,
+        )
         return self

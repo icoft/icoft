@@ -61,11 +61,18 @@ class U2NetProcessor:
         urllib.request.urlretrieve(self.MODEL_URL, str(self.model_path), reporthook)
         print(f"\nModel downloaded to {self.model_path}")
 
-    def remove_background(self, image: Image.Image) -> Image.Image:
+    def remove_background(
+        self,
+        image: Image.Image,
+        erode_size: int = 10,
+        post_process_mask: bool = True,
+    ) -> Image.Image:
         """Remove background from image using U²-Net.
 
         Args:
             image: Input PIL Image (RGB or RGBA)
+            erode_size: Erosion size to remove edge shadows (0-50, larger=more erosion)
+            post_process_mask: Enable mask post-processing for smoother edges
 
         Returns:
             PIL Image with transparent background (RGBA)
@@ -78,7 +85,12 @@ class U2NetProcessor:
         mask = outputs[0][0, 0]  # Get first batch, first channel
 
         # Postprocess
-        result_image = self._postprocess(image, mask)
+        result_image = self._postprocess(
+            image,
+            mask,
+            erode_size=erode_size,
+            post_process_mask=post_process_mask,
+        )
 
         return result_image
 
@@ -113,18 +125,43 @@ class U2NetProcessor:
 
         return img_array
 
-    def _postprocess(self, original: Image.Image, mask: np.ndarray) -> Image.Image:
+    def _postprocess(
+        self,
+        original: Image.Image,
+        mask: np.ndarray,
+        erode_size: int = 10,
+        post_process_mask: bool = True,
+    ) -> Image.Image:
         """Postprocess mask and apply to original image.
 
         Args:
             original: Original PIL Image
             mask: Predicted mask (H, W) with values in [0, 1]
+            erode_size: Erosion size to remove edge shadows
+            post_process_mask: Enable mask post-processing
 
         Returns:
             PIL Image with transparent background
         """
+        from PIL import ImageFilter
+
+        # Convert mask to uint8
+        mask_uint8 = (mask * 255).astype(np.uint8)
+
         # Resize mask to original image size
-        mask_pil = Image.fromarray((mask * 255).astype(np.uint8))
+        mask_pil = Image.fromarray(mask_uint8)
+
+        # Apply erosion using PIL morphology if erode_size > 0
+        if erode_size > 0:
+            # Use PIL's min filter for erosion effect
+            kernel_size = max(3, erode_size)  # Minimum 3x3 kernel
+            mask_pil = mask_pil.filter(ImageFilter.MinFilter(kernel_size))
+
+        # Apply Gaussian blur for smoother edges if post-processing enabled
+        if post_process_mask:
+            mask_pil = mask_pil.filter(ImageFilter.GaussianBlur(radius=2))
+
+        # Resize to original image size
         mask_resized = mask_pil.resize(original.size, Image.Resampling.BILINEAR)
 
         # Ensure original is RGBA

@@ -79,7 +79,7 @@ class TestCLI:
 
         result = runner.invoke(
             main,
-            [str(sample_image), str(output_dir), "-m", "5%"],
+            [str(sample_image), str(output_dir), "-c", "5%"],
         )
 
         assert result.exit_code == 0
