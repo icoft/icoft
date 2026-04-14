@@ -34,6 +34,9 @@ dev = [
 vector = [
     "cairosvg>=2.7.0",
 ]
+ai = [
+    "onnxruntime>=1.15.0,<1.20.0",
+]
 
 [tool.vscode]
 python.terminal.activateEnvironment = true

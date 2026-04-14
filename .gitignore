@@ -20,6 +20,11 @@ wheels/
 .vscode/
 pyrightconfig.json
 
+# Test scripts and temporary files
+scripts/
+test_*.png
+test_*.jpg
+
 # Example files
 examples/
 *.py[cod]

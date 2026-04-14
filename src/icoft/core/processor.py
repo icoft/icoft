@@ -174,3 +174,23 @@ class ImageProcessor:
         new_image = Image.new("RGBA", (new_width, new_height), (0, 0, 0, 0))
         new_image.paste(self.image, (margin_pixels, margin_pixels))
         self.image = new_image
+
+    def remove_background_ai(self) -> "ImageProcessor":
+        """
+        Remove background using AI (U²-Net via ONNX Runtime).
+
+        This method uses a lightweight deep learning model to intelligently
+        separate foreground from background, handling complex backgrounds
+        that simple color-based methods cannot handle.
+
+        Returns:
+            self for method chaining.
+
+        Raises:
+            ImportError: If onnxruntime is not installed.
+        """
+        from .u2net import U2NetProcessor
+
+        processor = U2NetProcessor()
+        self.image = processor.remove_background(self.image)
+        return self

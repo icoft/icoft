@@ -86,6 +86,14 @@ __version__ = version("icoft")
     help="SVG color precision (1-16, default: 6, only for normal mode)",
 )
 @click.option(
+    "-M",
+    "--bg-method",
+    "bg_method",
+    type=click.Choice(["simple", "ai"]),
+    default="simple",
+    help="Background removal method: simple (color-based) or ai (U²-Net)",
+)
+@click.option(
     "-o",
     "--output",
     "output_format",
@@ -107,6 +115,7 @@ def main(
     crop_margin: str | None,
     do_transparent: bool,
     bg_threshold: int,
+    bg_method: str,
     svg_mode: str | None,
     svg_speckle: int,
     svg_precision: int,
@@ -287,10 +296,21 @@ def main(
         # -t/-B: Simple background removal (detect corner color)
         # -T: Advanced watermark/noise removal (edge detection + adaptive threshold)
         if transparent_enabled:
-            # Simple background removal
             console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
-            processor.make_background_transparent(tolerance=bg_threshold)
-            console.print("[green]✓[/green] Background made transparent")
+
+            if bg_method == "ai":
+                # AI-based background removal using U²-Net
+                try:
+                    processor.remove_background_ai()
+                    console.print("[green]✓[/green] Background removed using AI (U²-Net)")
+                except ImportError as e:
+                    console.print(f"[red]Error:[/] {e}")
+                    console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
+                    raise SystemExit(1) from None
+            else:
+                # Simple color-based background removal
+                processor.make_background_transparent(tolerance=bg_threshold)
+                console.print("[green]✓[/green] Background made transparent (color-based)")
 
             if last_step == "transparent":
                 last_output_path = (
