@@ -46,14 +46,6 @@ __version__ = version("icoft")
     help="Margin for cropping (e.g., 5%, 10px)",
 )
 @click.option(
-    "-t",
-    "--transparent",
-    "do_transparent",
-    is_flag=True,
-    default=False,
-    help="Make background transparent (simple color-based method)",
-)
-@click.option(
     "-A",
     "--ai-bg",
     "use_ai_bg",
@@ -66,8 +58,8 @@ __version__ = version("icoft")
     "--bg-threshold",
     "bg_threshold",
     type=int,
-    default=10,
-    help="Color-based refinement threshold after AI (0-255, default: 10)",
+    default=0,
+    help="Enable simple color-based background removal with threshold (0-255, default: 10 when enabled)",
 )
 @click.option(
     "-s",
@@ -113,7 +105,6 @@ def main(
     source_file: str | None,
     dest_dir: str | None,
     crop_margin: str | None,
-    do_transparent: bool,
     use_ai_bg: bool,
     bg_threshold: int,
     svg_mode: str | None,
@@ -191,8 +182,8 @@ def main(
     any_step_flagged = any(
         [
             crop_margin is not None,
-            do_transparent,
-            bg_threshold != 10,
+            bg_threshold != 0,
+            use_ai_bg,
             svg_mode is not None,
             svg_speckle != 10,
             svg_precision != 6,
@@ -208,8 +199,8 @@ def main(
         svg_mode = None
     else:
         # Enable steps based on which parameters were provided
-        # -t or -B → transparent_enabled (simple background removal)
-        transparent_enabled = do_transparent or bg_threshold != 10
+        # -B → simple background removal, -A → AI background removal
+        transparent_enabled = bg_threshold != 0 or use_ai_bg
 
         # Auto-enable steps based on parameter flags
         crop_enabled = crop_margin is not None
@@ -257,7 +248,7 @@ def main(
         step_num = 1
 
         # Determine if background processing is enabled
-        transparent_enabled = do_transparent or use_ai_bg
+        transparent_enabled = bg_threshold != 0 or use_ai_bg
 
         # Determine the last step to save the final output
         # When --output=icon, always generate icons regardless of processing steps
@@ -296,15 +287,15 @@ def main(
                 return
 
         # Step 2: Background processing
-        # -t: Simple color-based method
+        # -B: Simple color-based method
         # -A: AI-based method (U²-Net)
-        # -B: Optional refinement after AI
+        # -A -B: AI + refinement
         if transparent_enabled:
             if use_ai_bg:
                 # AI-based background removal
                 # Phase 1: Extract background color BEFORE AI (for optional refinement)
                 bg_color = None
-                if bg_threshold != 10:  # Only extract if user specified -B
+                if bg_threshold != 0:  # -B specified with AI for refinement
                     console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
                     bg_color = processor.extract_background_color()
                     if bg_color is not None:
@@ -336,10 +327,13 @@ def main(
                         "[green]✓[/green] Color-based refinement applied (skips already transparent pixels)"
                     )
             else:
-                # Simple color-based background removal (-t flag)
+                # Simple color-based background removal (-B flag)
+                threshold = bg_threshold if bg_threshold != 0 else 10  # Default to 10 if just -B
                 console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
-                processor.make_background_transparent(tolerance=bg_threshold)
-                console.print("[green]✓[/green] Background made transparent (color-based)")
+                processor.make_background_transparent(tolerance=threshold)
+                console.print(
+                    f"[green]✓[/green] Background made transparent (color-based, threshold={threshold})"
+                )
 
             if last_step == "transparent":
                 last_output_path = (
