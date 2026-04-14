@@ -64,7 +64,7 @@ class U2NetProcessor:
     def remove_background(
         self,
         image: Image.Image,
-        erode_size: int = 10,
+        erode_size: int = 0,
         post_process_mask: bool = True,
     ) -> Image.Image:
         """Remove background from image using U²-Net.
@@ -129,7 +129,7 @@ class U2NetProcessor:
         self,
         original: Image.Image,
         mask: np.ndarray,
-        erode_size: int = 10,
+        erode_size: int = 0,
         post_process_mask: bool = True,
     ) -> Image.Image:
         """Postprocess mask and apply to original image.
@@ -143,26 +143,57 @@ class U2NetProcessor:
         Returns:
             PIL Image with transparent background
         """
-        from PIL import ImageFilter
-
-        # Convert mask to uint8
+        # Resize mask to original image size first
         mask_uint8 = (mask * 255).astype(np.uint8)
-
-        # Resize mask to original image size
         mask_pil = Image.fromarray(mask_uint8)
-
-        # Apply erosion using PIL morphology if erode_size > 0
-        if erode_size > 0:
-            # Use PIL's min filter for erosion effect
-            kernel_size = max(3, erode_size)  # Minimum 3x3 kernel
-            mask_pil = mask_pil.filter(ImageFilter.MinFilter(kernel_size))
-
-        # Apply Gaussian blur for smoother edges if post-processing enabled
-        if post_process_mask:
-            mask_pil = mask_pil.filter(ImageFilter.GaussianBlur(radius=2))
-
-        # Resize to original image size
         mask_resized = mask_pil.resize(original.size, Image.Resampling.BILINEAR)
+        mask_array = np.array(mask_resized)
+
+        # Smart edge refinement: use original image colors to clean up AI artifacts
+        # Get the original image as numpy array
+        if original.mode != "RGBA":
+            original_rgb = original.convert("RGB")
+        else:
+            original_rgb = original.convert("RGB")
+        
+        original_array = np.array(original_rgb)
+        
+        # Detect background color from corners (assuming corners are background)
+        h, w = original_array.shape[:2]
+        corner_samples = [
+            original_array[0, 0],
+            original_array[0, w-1],
+            original_array[h-1, 0],
+            original_array[h-1, w-1],
+        ]
+        bg_color = np.mean(corner_samples, axis=0)
+        
+        # For uncertain edge regions (128-200), check if they match background color
+        # If yes, make them transparent even if model says they're foreground
+        uncertain_mask = (mask_array > 128) & (mask_array < 200)
+        if np.any(uncertain_mask):
+            # Calculate color distance to background
+            color_diff = np.abs(original_array.astype(float) - bg_color)
+            is_bg_color = np.all(color_diff < 40, axis=2)  # Tolerance of 40
+            
+            # Make uncertain regions transparent if they match background color
+            mask_array[uncertain_mask & is_bg_color] = 0
+
+        mask_pil_clean = Image.fromarray(mask_array.astype(np.uint8))
+
+        # TODO: Post-processing causes object shrinkage - disabled for now
+        # Apply erosion using PIL morphology if erode_size > 0
+        # if erode_size > 0:
+        #     from PIL import ImageFilter
+        #     kernel_size = max(3, erode_size)
+        #     if kernel_size % 2 == 0:
+        #         kernel_size += 1
+        #     mask_pil_clean = mask_pil_clean.filter(ImageFilter.MinFilter(kernel_size))
+
+        # TODO: Gaussian blur disabled - causes edge softening
+        # if post_process_mask:
+        #     from PIL import ImageFilter
+        #     mask_pil_clean = mask_pil_clean.filter(ImageFilter.GaussianBlur(radius=1))
 
         # Ensure original is RGBA
         if original.mode != "RGBA":
@@ -170,7 +201,7 @@ class U2NetProcessor:
 
         # Apply mask as alpha channel
         r, g, b, a = original.split()
-        a = mask_resized
+        a = mask_pil_clean
         result = Image.merge("RGBA", (r, g, b, a))
 
         return result

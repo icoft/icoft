@@ -50,7 +50,23 @@ __version__ = version("icoft")
     "use_ai_bg",
     is_flag=True,
     default=False,
-    help="Use AI for background removal (U²-Net)",
+    help="Use AI for background removal",
+)
+@click.option(
+    "--ai-model",
+    "ai_model",
+    type=click.Choice(["u2net", "rmbg"]),
+    default="u2net",
+    help="AI model for background removal: u2net (fast, 5MB) or rmbg (better quality, 45MB). Default: u2net",
+)
+@click.option(
+    "--ai-threshold",
+    "ai_threshold",
+    type=int,
+    default=None,
+    help="Threshold for RMBG-1.4 model only (0-255). Ignored for U²-Net. "
+         "Auto-detected based on image brightness if not specified. "
+         "Lower values = more aggressive removal. Recommended: 100-128 for light icons, 180-220 for dark logos",
 )
 @click.option(
     "-b",
@@ -105,6 +121,8 @@ def main(
     dest_dir: str | None,
     crop_margin: str | None,
     use_ai_bg: bool,
+    ai_model: str,
+    ai_threshold: int | None,
     bg_threshold: int,
     svg_mode: str | None,
     svg_speckle: int,
@@ -183,6 +201,7 @@ def main(
             crop_margin is not None,
             bg_threshold != 0,
             use_ai_bg,
+            ai_threshold is not None,
             svg_mode is not None,
             svg_speckle != 10,
             svg_precision != 6,
@@ -307,10 +326,14 @@ def main(
                         )
 
                 # Phase 2: AI-based background removal
-                console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI...")
+                model_name = "U²-Net" if ai_model == "u2net" else "RMBG-1.4"
+                console.print(f"[yellow]Step {step_num + 1}:[/] Removing background with AI ({model_name})...")
                 try:
-                    processor.remove_background_ai()
-                    console.print("[green]✓[/green] Background removed using AI (U²-Net)")
+                    processor.remove_background_ai(
+                        model=ai_model,
+                        threshold=ai_threshold,
+                    )
+                    console.print(f"[green]✓[/green] Background removed using AI ({model_name})")
                 except ImportError as e:
                     console.print(f"[red]Error:[/] {e}")
                     console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
@@ -338,7 +361,7 @@ def main(
                 last_output_path = (
                     output_path
                     if is_single_file
-                    else output_path / f"{base_filename}_transparent.png"
+                    else output_path / f"{base_filename}.png"
                 )
                 processor.save(last_output_path)
                 console.print(
