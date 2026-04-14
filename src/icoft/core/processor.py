@@ -73,7 +73,7 @@ class ImageProcessor:
 
         height, width = img_array.shape[:2]
         num_samples = 30  # Number of random samples per edge
-        color_threshold = 15  # Threshold for considering colors similar
+        color_threshold = 20  # Threshold for considering colors similar (increased for robustness)
 
         # Collect opaque pixels from all four edges using random sampling
         edge_pixels = []
@@ -123,7 +123,7 @@ class ImageProcessor:
         similar_pixels = pixels_array[similar_mask]
 
         # If the majority are similar, use them; otherwise try different reference
-        if len(similar_pixels) >= len(pixels_array) * 0.6:  # At least 60% are similar
+        if len(similar_pixels) >= len(pixels_array) * 0.5:  # At least 50% are similar
             bg_color = np.mean(similar_pixels, axis=0)
             return bg_color
 
@@ -135,7 +135,7 @@ class ImageProcessor:
         )
         similar_pixels = pixels_array[similar_mask]
 
-        if len(similar_pixels) >= len(pixels_array) * 0.6:
+        if len(similar_pixels) >= len(pixels_array) * 0.5:
             bg_color = np.mean(similar_pixels, axis=0)
             return bg_color
 

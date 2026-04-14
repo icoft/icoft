@@ -360,7 +360,7 @@ requires-dist = [
     { name = "cairosvg", marker = "extra == 'vector'", specifier = ">=2.7.0" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "numpy", specifier = ">=1.24.0" },
-    { name = "onnxruntime", specifier = ">=1.15.0,<1.20.0" },
+    { name = "onnxruntime", specifier = ">=1.19.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
