@@ -74,15 +74,6 @@ pipx install icoft
 pipx install icoft[cairosvg]
 ```
 
-### Install with pip
-
-```bash
-pip install icoft
-
-# Install with optional cairosvg
-pip install icoft[cairosvg]
-```
-
 ### Install from Source
 
 ```bash
