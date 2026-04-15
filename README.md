@@ -24,7 +24,7 @@ The following examples demonstrate different background removal and vectorizatio
 
 | Original | Color-based (-b 70) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/images/icoft02.png" width="100"> | <img src="docs/images/icoft02-b70.png" width="100"> | <img src="docs/images/icoft02-a.png" width="100"> | <img src="docs/images/icoft02-b70-S0-P16.svg" width="100"> | <img src="docs/images/icoft02-b70-embed.svg" width="100"> |
+| <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/icoft02.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/icoft02-b70.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/icoft02-a.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/icoft02-b70-S0-P16.svg" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/icoft02-b70-embed.svg" width="100"> |
 | White background with gradient logo | Clean removal of simple background | Cannot handle center cutout | Gradient banding due to SVG limitations | Perfect gradient, NOT scalable |
 
 ### Example 2: Complex Background (Low Contrast, Shadows, Gradients)
@@ -33,7 +33,7 @@ This example shows a logo with low contrast between foreground and background, w
 
 | Original | Color-based (-b 30) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/images/cogist05.png" width="100"> | <img src="docs/images/cogist05-b30.png" width="100"> | <img src="docs/images/cogist05-a.png" width="100"> | <img src="docs/images/cogist05-a-S0-P16.svg" width="100"> | <img src="docs/images/cogist05-a-embed.svg" width="100"> |
+| <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist05.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist05-b30.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist05-a.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist05-a-S0-P16.svg" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist05-a-embed.svg" width="100"> |
 | Low contrast, shadows, gradients | Cannot preserve foreground | Removes shadows, clear edges | Gradient banding | Perfect gradient, NOT scalable |
 
 ### Example 3: High Contrast Simple Geometry
@@ -42,7 +42,7 @@ This example shows a high-contrast simple geometric shape, ideal for color-based
 
 | Original | Color-based (-b 100) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/images/cogist07.png" width="100"> | <img src="docs/images/cogist07-b100.png" width="100"> | <img src="docs/images/cogist07-a.png" width="100"> | <img src="docs/images/cogist07-b100-normal.svg" width="100"> | <img src="docs/images/cogist07-b100-embed.svg" width="100"> |
+| <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-a.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100-normal.svg" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100-embed.svg" width="100"> |
 | High contrast simple geometry | Perfect removal | Cannot handle center cutout | Perfect vectorization | Perfect, NOT scalable |
 
 > **Note**: All examples above are displayed on a neutral gray background (`#808080`) to show transparent areas.
