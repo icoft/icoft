@@ -27,6 +27,11 @@ default = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/icoft"]
 
+[project.urls]
+Homepage = "https://github.com/icoft/icoft"
+Repository = "https://github.com/icoft/icoft"
+"Bug Tracker" = "https://github.com/icoft/icoft/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",

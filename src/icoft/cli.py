@@ -381,7 +381,7 @@ def main(
             console.print(f"\n[bold green]Success![/] PNG saved to: {output_path}")
 
     except Exception as e:
-        console.print(f"[red]Error:[/] {str(e)}")
+        console.print(f"[red]Error:[/] {e}")
         raise
 
 
