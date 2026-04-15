@@ -14,6 +14,7 @@ Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP)
 - **Vectorization**: High-quality raster to SVG conversion
   - `normal` mode: True vector tracing for infinite scaling (best for simple graphics)
   - `embed` mode: PNG embedded in SVG wrapper (preserves gradients/photos, NOT scalable)
+  - Optional: Install `cairosvg` for high-quality SVG to PNG rendering in icon generation
 - **Flexible Output**: Generate complete icon sets or single processed images
 - **CLI Friendly**: Unix-style composable parameters with Rich terminal output
 
@@ -59,12 +60,27 @@ uv tool install icoft
 
 # Or run directly with uvx (no installation required)
 uvx icoft --help
+
+# Install with optional cairosvg for high-quality SVG rendering
+uv tool install icoft --with cairosvg
 ```
 
 ### Install with pipx
 
 ```bash
 pipx install icoft
+
+# Install with optional cairosvg
+pipx install icoft[cairosvg]
+```
+
+### Install with pip
+
+```bash
+pip install icoft
+
+# Install with optional cairosvg
+pip install icoft[cairosvg]
 ```
 
 ### Install from Source
@@ -292,7 +308,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Optional Dependencies
 
-- **cairosvg** - For rendering SVG to PNG in icon generation (install with `uv sync --extra icon`)
+- **cairosvg** - For high-quality SVG to PNG rendering in icon generation
+  - Install with pip: `pip install icoft[cairosvg]`
+  - Install with uv: `uv tool install icoft --with cairosvg`
 
 ***
 
