@@ -342,3 +342,97 @@ class ImageProcessor:
             bg_threshold=bg_threshold,
         )
         return self
+
+    def apply_background(self, color: tuple[int, int, int] | str) -> "ImageProcessor":
+        """
+        Apply a solid background color to the image.
+
+        Args:
+            color: Background color as RGB tuple (R, G, B) or string (hex, rgb, or name).
+
+        Returns:
+            self for method chaining.
+        """
+        if isinstance(color, str):
+            color = self._parse_color(color)
+
+        # Create background image
+        bg = Image.new("RGBA", self.image.size, (*color, 255))
+
+        # Composite the image onto the background
+        self.image = Image.alpha_composite(bg, self.image)
+        return self
+
+    @staticmethod
+    def _parse_color(color_str: str) -> tuple[int, int, int]:
+        """
+        Parse color string to RGB tuple.
+
+        Supports:
+        - Hex: #RRGGBB or #RGB (e.g., #FF0000, #F00)
+        - RGB: R,G,B (e.g., 255,0,0)
+        - Names: red, green, blue, gray, white, black, etc.
+
+        Args:
+            color_str: Color string to parse.
+
+        Returns:
+            RGB tuple (R, G, B).
+
+        Raises:
+            ValueError: If color format is invalid.
+        """
+        color_str = color_str.strip().lower()
+
+        # Named colors
+        named_colors = {
+            "red": (255, 0, 0),
+            "green": (0, 255, 0),
+            "blue": (0, 0, 255),
+            "white": (255, 255, 255),
+            "black": (0, 0, 0),
+            "gray": (128, 128, 128),
+            "grey": (128, 128, 128),
+            "yellow": (255, 255, 0),
+            "cyan": (0, 255, 255),
+            "magenta": (255, 0, 255),
+            "orange": (255, 165, 0),
+            "purple": (128, 0, 128),
+            "pink": (255, 192, 203),
+            "brown": (165, 42, 42),
+        }
+
+        if color_str in named_colors:
+            return named_colors[color_str]
+
+        # Hex format: #RRGGBB or #RGB
+        if color_str.startswith("#"):
+            hex_color = color_str[1:]
+            if len(hex_color) == 6:
+                return (
+                    int(hex_color[0:2], 16),
+                    int(hex_color[2:4], 16),
+                    int(hex_color[4:6], 16),
+                )
+            elif len(hex_color) == 3:
+                return (
+                    int(hex_color[0] * 2, 16),
+                    int(hex_color[1] * 2, 16),
+                    int(hex_color[2] * 2, 16),
+                )
+            else:
+                raise ValueError(f"Invalid hex color format: {color_str}")
+
+        # RGB format: R,G,B
+        if "," in color_str:
+            parts = color_str.split(",")
+            if len(parts) == 3:
+                return (
+                    int(parts[0].strip()),
+                    int(parts[1].strip()),
+                    int(parts[2].strip()),
+                )
+            else:
+                raise ValueError(f"Invalid RGB color format: {color_str}")
+
+        raise ValueError(f"Unknown color format: {color_str}")

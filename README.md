@@ -11,9 +11,40 @@ Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP)
 - **Icon Generation**: Generate complete app icon sets for Windows, macOS, Linux, and Web
 - **Image Cropping**: Remove outer borders by specifying command options, with customizable margins
 - **Background Removal**: Simple background transparency algorithm based on background color sampling and specified thresholds, or AI-based background removal using U²-Net
-- **Vectorization**: High-quality raster to SVG conversion (based on vector tracing or embedded PNG)
+- **Vectorization**: High-quality raster to SVG conversion
+  - `normal` mode: True vector tracing for infinite scaling (best for simple graphics)
+  - `embed` mode: PNG embedded in SVG wrapper (preserves gradients/photos, NOT scalable)
 - **Flexible Output**: Generate complete icon sets or single processed images
 - **CLI Friendly**: Unix-style composable parameters with Rich terminal output
+
+## Background Removal & Vectorization Examples
+
+The following examples demonstrate different background removal and vectorization methods using a logo with gradient colors on white background. All examples are displayed on a neutral gray background (`#808080`) to show transparent areas.
+
+| Original | Color-based (-b 70) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/images/icoft02.png" width="100"> | <img src="docs/images/icoft02-b70.png" width="100"> | <img src="docs/images/icoft02-a.png" width="100"> | <img src="docs/images/icoft02-b70-S0-P16.svg" width="100"> | <img src="docs/images/icoft02-b70-embed.svg" width="100"> |
+| White background with gradient logo | Clean removal of simple background | Cannot handle center cutout | Gradient banding due to SVG limitations | Perfect gradient, NOT scalable |
+
+### Example 2: Complex Background (Low Contrast, Shadows, Gradients)
+
+This example shows a logo with low contrast between foreground and background, with shadows and gradient effects:
+
+| Original | Color-based (-b 30) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/images/cogist05.png" width="100"> | <img src="docs/images/cogist05-b30.png" width="100"> | <img src="docs/images/cogist05-a.png" width="100"> | <img src="docs/images/cogist05-a-S0-P16.svg" width="100"> | <img src="docs/images/cogist05-a-embed.svg" width="100"> |
+| Low contrast, shadows, gradients | Cannot preserve foreground | Removes shadows, clear edges | Gradient banding | Perfect gradient, NOT scalable |
+
+### Example 3: High Contrast Simple Geometry
+
+This example shows a high-contrast simple geometric shape, ideal for color-based background removal:
+
+| Original | Color-based (-b 100) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/images/cogist07.png" width="100"> | <img src="docs/images/cogist07-b100.png" width="100"> | <img src="docs/images/cogist07-a.png" width="100"> | <img src="docs/images/cogist07-b100-normal.svg" width="100"> | <img src="docs/images/cogist07-b100-embed.svg" width="100"> |
+| High contrast simple geometry | Perfect removal | Cannot handle center cutout | Perfect vectorization | Perfect, NOT scalable |
+
+> **Note**: All examples above are displayed on a neutral gray background (`#808080`) to show transparent areas.
 
 ## Installation
 

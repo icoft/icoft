@@ -30,21 +30,9 @@ __version__ = version("icoft")
 
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
-    epilog="""Output Modes:
-  DEST_DIR              Generate full icon set for selected platforms
-  OUTPUT_FILE -o png    Save processed image as single PNG
-  OUTPUT_FILE -o svg    Save processed image as single SVG (auto-vectorizes)""",
 )
 @click.argument("source_file", type=click.Path(exists=True), required=False)
 @click.argument("dest_dir", type=click.Path(), required=False)
-@click.option(
-    "-c",
-    "--crop-margin",
-    "crop_margin",
-    type=str,
-    default=None,
-    help="Margin for cropping (e.g., 5%, 10px)",
-)
 @click.option(
     "-a",
     "use_ai_bg",
@@ -61,12 +49,42 @@ __version__ = version("icoft")
     help="Enable simple color-based background removal with threshold (0-255, default: 10 when enabled)",
 )
 @click.option(
+    "--bg-color",
+    "bg_color",
+    type=str,
+    default=None,
+    help='Background color for output (hex: "#RRGGBB" or "#RGB", rgb: "R,G,B", or name: red, gray, etc.)',
+)
+@click.option(
+    "-c",
+    "--crop-margin",
+    "crop_margin",
+    type=str,
+    default=None,
+    help="Margin for cropping (e.g., 5%, 10px)",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_format",
+    type=click.Choice(["png", "svg", "icon"]),
+    default="icon",
+    help="Output format: icon (directory), png (single file), svg (single file)",
+)
+@click.option(
+    "-p",
+    "--platforms",
+    type=str,
+    default="all",
+    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
+)
+@click.option(
     "-s",
     "--svg",
     "svg_mode",
     type=click.Choice(["normal", "embed"]),
     default=None,
-    help="Enable SVG output: normal (vector tracing, default for lossless scaling) or embed (PNG in SVG, preserves gradients)",
+    help="Enable SVG output: normal (true vector, scalable) or embed (PNG in SVG wrapper, NOT scalable, preserves gradients/photos)",
 )
 @click.option(
     "-S",
@@ -84,204 +102,92 @@ __version__ = version("icoft")
     default=6,
     help="SVG color precision (1-16, default: 6, only for normal mode)",
 )
-@click.option(
-    "-o",
-    "--output",
-    "output_format",
-    type=click.Choice(["png", "svg", "icon"]),
-    default="icon",
-    help="Output format: icon (directory), png (single file), svg (single file)",
-)
-@click.option(
-    "-p",
-    "--platforms",
-    type=str,
-    default="all",
-    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
-)
 @click.option("-V", "--version", "show_version", is_flag=True, help="Show version and exit")
 def main(
     source_file: str | None,
     dest_dir: str | None,
-    crop_margin: str | None,
     use_ai_bg: bool,
     bg_threshold: int,
+    bg_color: str | None,
+    crop_margin: str | None,
+    output_format: str,
+    platforms: str,
     svg_mode: str | None,
     svg_speckle: int,
     svg_precision: int,
-    output_format: str,
-    platforms: str,
     show_version: bool,
 ) -> None:
     """Icoft - From Single Image to Full-Platform App Icons."""
 
     # Handle --version flag
     if show_version:
-        console.print(f"[bold blue]icoft[/bold blue] [dim]v{__version__}[/dim]")
+        console.print(f"Icoft version {__version__}")
         return
 
-    # Validate required arguments with clear error messages
-    if source_file is None and dest_dir is None:
-        console.print("[red]Error:[/] Missing required arguments")
-        console.print("  [bold]SOURCE_FILE[/bold] and [bold]DEST_DIR[/bold] are required.")
-        console.print("\n[bold blue]Examples:[/]")
-        console.print("  icoft logo.png icons/              # Generate icons from original")
-        console.print("  icoft -m 10% logo.png icons/       # Crop + generate icons")
-        console.print("  icoft logo.png out.svg -o svg      # Output single SVG")
-        console.print("\nUse [bold]-h[/bold] or [bold]--help[/bold] for more options.")
-        raise SystemExit(1)
-
+    # Validate arguments
     if source_file is None:
-        console.print("[red]Error:[/] Missing [bold]SOURCE_FILE[/bold] argument")
-        console.print("  Please specify the input image file.")
-        console.print("\n[bold blue]Example:[/] icoft logo.png icons/")
+        console.print("[red]Error:[/] Missing source file argument")
+        console.print("\nUsage: icoft [OPTIONS] SOURCE_FILE DEST_DIR")
+        console.print("       icoft [OPTIONS] SOURCE_FILE OUTPUT_FILE -o FORMAT")
+        console.print("\nUse -h or --help for more information.")
         raise SystemExit(1)
 
     if dest_dir is None:
-        console.print("[red]Error:[/] Missing [bold]DEST_DIR[/bold] argument")
-        console.print("  Please specify the output directory or file path.")
-        console.print("\n[bold blue]Examples:[/]")
-        console.print("  icoft logo.png [bold]icons/[/bold]           # Output to directory")
-        console.print("  icoft logo.png [bold]out.svg[/bold] -o svg   # Output to single file")
+        console.print("[red]Error:[/] Missing destination directory or output file argument")
+        console.print("\nUsage: icoft [OPTIONS] SOURCE_FILE DEST_DIR")
+        console.print("       icoft [OPTIONS] SOURCE_FILE OUTPUT_FILE -o FORMAT")
+        console.print("\nUse -h or --help for more information.")
         raise SystemExit(1)
 
-    from pathlib import Path
-
-    input_path = Path(source_file)
-    output_path = Path(dest_dir)
-
-    # Get base filename without extension for output naming
-    base_filename = input_path.stem
-
-    # Smart 判断：是单文件输出还是目录输出？
-    # 规则：
-    # 1. 如果 dest_dir 以 / 结尾 → 目录
-    # 2. 如果 dest_dir 有图片扩展名 (.png, .jpg, .svg) → 文件
-    # 3. 否则 → 目录
-    is_single_file = dest_dir.endswith("/") is False and output_path.suffix.lower() in [
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".svg",
-        ".ico",
-        ".icns",
-    ]
-
-    # 创建输出目录（单文件输出时创建父目录）
-    if is_single_file:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-    else:
-        output_path.mkdir(parents=True, exist_ok=True)
-
-    console.print("[bold blue]Icoft - Icon Forge[/bold blue]")
-    console.print(f"Processing: {input_path}")
-    console.print(f"Output: {output_path} ({'single file' if is_single_file else 'directory'})\n")
-
-    # Check if any step flag was explicitly provided
-    any_step_flagged = any(
-        [
-            crop_margin is not None,
-            bg_threshold != 0,
-            use_ai_bg,
-            svg_mode is not None,
-            svg_speckle != 10,
-            svg_precision != 6,
-        ]
-    )
-
-    # Determine which steps to execute
-    if not any_step_flagged:
-        # No flags - default: NO processing, only generate icons from original image
-        crop_margin = None
-        crop_enabled = False
-        transparent_enabled = False
-        svg_mode = None
-    else:
-        # Enable steps based on which parameters were provided
-        # -B → simple background removal, -A → AI background removal
-        transparent_enabled = bg_threshold != 0 or use_ai_bg
-
-        # Auto-enable steps based on parameter flags
-        crop_enabled = crop_margin is not None
-        if svg_mode is None and (svg_speckle != 10 or svg_precision != 6):
-            svg_mode = "normal"
-
-    # --output=svg should auto-enable vectorization
-    if output_format == "svg" and svg_mode is None:
-        svg_mode = "normal"
-        # Also enable transparent background if no other processing specified
-        if not transparent_enabled:
-            transparent_enabled = True
-
-    # Validate mutually exclusive parameters
-    if svg_mode == "embed" and (svg_speckle != 10 or svg_precision != 6):
-        console.print(
-            "[red]Error:[/] -S/--svg-speckle and -P/--svg-precision are only valid for 'normal' mode"
-        )
-        console.print(
-            "These parameters control vtracer settings, which are not used in 'embed' mode"
-        )
-        return
-
-    # Check for cairosvg if using normal mode with icon generation
-    if svg_mode == "normal" and output_format == "icon":
-        import importlib.util
-
-        if importlib.util.find_spec("cairosvg") is None:
-            console.print("[yellow]Warning:[/] cairosvg is not installed.")
-            console.print("[dim]Icons will be generated using standard bitmap scaling.[/dim]")
-            console.print(
-                "[dim]For higher quality vector-based icons, install with: uv sync --extra icon[/dim]"
-            )
-
-    # Priority 4: Determine output format
-    # --output=icon (default) → generate icons
-    # --output=png → save last processing step as PNG
-    # --output=svg → save last processing step as SVG
-    icon_enabled = output_format == "icon"
-
     try:
+        from pathlib import Path
+
         from icoft.core.processor import ImageProcessor
 
-        processor = ImageProcessor(input_path)
+        source_path = Path(source_file)
+        output_path = Path(dest_dir)
+
+        # Get base filename for outputs
+        base_filename = source_path.stem
+
+        # Determine if we're outputting to a single file or directory
+        if output_format in ["png", "svg"]:
+            # When -o png/svg is specified, check if output_path is a directory
+            # If so, generate filename automatically
+            if output_path.is_dir() or not output_path.suffix:
+                is_single_file = False
+                output_path = output_path / f"{base_filename}.{output_format}"
+            else:
+                is_single_file = True
+        else:
+            is_single_file = output_path.suffix in [".png", ".svg"]
+
+        console.print("[bold cyan]Icoft - Icon Forge[/bold cyan]")
+        console.print(f"Processing: {source_path}")
+        if is_single_file:
+            console.print(f"Output: {output_path} (single file)\n")
+        else:
+            console.print(f"Output: {output_path} (directory)\n")
+
+        # Initialize processor
+        processor = ImageProcessor(source_path)
+
+        # Track step number for display
         step_num = 1
 
-        # Determine if background processing is enabled
-        transparent_enabled = bg_threshold != 0 or use_ai_bg
+        # Determine which processing steps are enabled
+        crop_enabled = crop_margin is not None
+        transparent_enabled = use_ai_bg or bg_threshold != 0
+        icon_enabled = output_format == "icon" and not is_single_file
 
-        # Determine the last step to save the final output
-        # When --output=icon, always generate icons regardless of processing steps
-        if icon_enabled:
-            last_step = "icon"
-        elif output_format == "svg":
-            last_step = "svg"
-        elif output_format == "png":
-            if transparent_enabled:
-                last_step = "transparent"
-            elif crop_enabled:
-                last_step = "crop"
-            else:
-                last_step = "original"
-        else:
-            last_step = "icon"
-
-        # Step 1: Crop borders
+        # Step 1: Cropping (optional)
         if crop_enabled:
             console.print(f"[yellow]Step {step_num}:[/] Cropping borders...")
-            assert crop_margin is not None  # Guaranteed by crop_enabled check
-            processor.crop_borders(margin=crop_margin)
+            processor.crop_borders(crop_margin)
             console.print("[green]✓[/green] Borders cropped")
             step_num += 1
 
-            if last_step == "crop":
-                last_output_path = (
-                    output_path if is_single_file else output_path / f"{base_filename}_cropped.png"
-                )
-                processor.save(last_output_path)
-                console.print(
-                    f"\n[bold green]Success![/] Cropped image saved to: {last_output_path}"
-                )
-                return
+            # Continue to final output step
 
         # Step 2: Background processing
         # -B: Simple color-based method
@@ -291,13 +197,13 @@ def main(
             if use_ai_bg:
                 # AI-based background removal
                 # Phase 1: Extract background color BEFORE AI (for optional refinement)
-                bg_color = None
+                extracted_bg_color = None
                 if bg_threshold != 0:  # -B specified with AI for refinement
                     console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
-                    bg_color = processor.extract_background_color()
-                    if bg_color is not None:
+                    extracted_bg_color = processor.extract_background_color()
+                    if extracted_bg_color is not None:
                         console.print(
-                            f"[green]✓[/green] Background color extracted: {bg_color.astype(int)}"
+                            f"[green]✓[/green] Background color extracted: {extracted_bg_color.astype(int)}"
                         )
                     else:
                         console.print(
@@ -317,11 +223,13 @@ def main(
                 step_num += 1
 
                 # Phase 3: Optional color-based refinement AFTER AI
-                if bg_color is not None:
+                if extracted_bg_color is not None:
                     console.print(
                         f"[yellow]Step {step_num}:[/] Applying color-based refinement (threshold={bg_threshold})..."
                     )
-                    processor.refine_transparency(bg_color=bg_color, tolerance=bg_threshold)
+                    processor.refine_transparency(
+                        bg_color=extracted_bg_color, tolerance=bg_threshold
+                    )
                     console.print(
                         "[green]✓[/green] Color-based refinement applied (handles both opaque and semi-transparent pixels)"
                     )
@@ -336,19 +244,36 @@ def main(
                 )
                 step_num += 1
 
-            if last_step == "transparent":
-                last_output_path = (
-                    output_path if is_single_file else output_path / f"{base_filename}.png"
-                )
-                processor.save(last_output_path)
-                console.print(
-                    f"\n[bold green]Success![/] Transparent PNG saved to: {last_output_path}"
-                )
+            # Apply background color if specified
+            if bg_color is not None:
+                console.print(f"[yellow]Step {step_num}:[/] Applying background color...")
+                try:
+                    processor.apply_background(bg_color)
+                    console.print(f"[green]✓[/green] Background color applied: {bg_color}")
+                except ValueError as e:
+                    console.print(f"[red]Error:[/] Invalid color format: {e}")
+                    return
+                step_num += 1
+
+            # Continue to final output step
+
+        # Apply background color for SVG/icon output (if not already applied in transparent step)
+        if bg_color is not None and not transparent_enabled:
+            console.print(f"[yellow]Step {step_num}:[/] Applying background color...")
+            try:
+                processor.apply_background(bg_color)
+                console.print(f"[green]✓[/green] Background color applied: {bg_color}")
+            except ValueError as e:
+                console.print(f"[red]Error:[/] Invalid color format: {e}")
                 return
+            step_num += 1
 
         # Step 4: SVG generation (only when -o svg)
         svg_content_for_generator = None
-        if output_format == "svg" and svg_mode is not None:
+        if output_format == "svg":
+            # Default to normal mode if -s is not specified
+            if svg_mode is None:
+                svg_mode = "normal"
             if svg_mode == "embed":
                 # Embed PNG as base64 into SVG (preserves gradients perfectly)
                 console.print(f"[yellow]Step {step_num}:[/] Generating SVG (embedded PNG)...")
@@ -392,10 +317,10 @@ def main(
                     # The paths start from (0,0) and are translated by transform attribute
                     # So viewBox should be from (0,0) with image dimensions
                     if "viewBox" not in svg_result:
-                        # Add simple viewBox starting from origin and red background
+                        # Add simple viewBox starting from origin
                         svg_result = re.sub(
                             r"<svg([^>]*)>",
-                            f'<svg\\1 viewBox="0 0 {img.width} {img.height}">\n<rect width="{img.width}" height="{img.height}" fill="#FF0000"/>',
+                            f'<svg\\1 viewBox="0 0 {img.width} {img.height}">',
                             svg_result,
                             count=1,
                         )
@@ -407,30 +332,13 @@ def main(
                     console.print("[dim]Install with: pip install vtracer[/dim]")
                     return
 
-            if is_single_file:
-                last_output_path = output_path
-            else:
-                last_output_path = output_path / f"{base_filename}.svg"
-            last_output_path.parent.mkdir(parents=True, exist_ok=True)
-            last_output_path.write_text(svg_result, encoding="utf-8")
+            # output_path already contains the full filename from initialization
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(svg_result, encoding="utf-8")
             console.print(f"[green]✓[/green] SVG generation complete (mode: {svg_mode})")
-            console.print(f"[dim]✓[/dim] Saved: {last_output_path.name}")
-
-            # Save final output if this is the last step
-            if last_step == "svg":
-                if output_format == "png":
-                    # Save SVG result as PNG (rasterize)
-                    # For now, just save the PNG before vectorization
-                    last_output_path = (
-                        output_path if is_single_file else output_path / f"{base_filename}.png"
-                    )
-                    processor.save(last_output_path)
-                    console.print(f"\n[bold green]Success![/] PNG saved to: {last_output_path}")
-                else:
-                    console.print(f"\n[bold green]Success![/] SVG saved to: {last_output_path}")
-                return
-
-            step_num += 1
+            console.print(f"[dim]✓[/dim] Saved: {output_path.name}")
+            console.print(f"\n[bold green]Success![/] SVG saved to: {output_path}")
+            return
 
         # Step 5: Generate icons (default) or save PNG
         if icon_enabled:
@@ -467,11 +375,10 @@ def main(
 
             console.print(f"\n[bold green]Success![/] All icons generated in: {output_path}")
 
-        elif output_format == "png" and last_step == "original":
-            # --output=png with no processing steps: save original as PNG
-            last_output_path = output_path if is_single_file else output_path / "original.png"
-            processor.save(last_output_path)
-            console.print(f"\n[bold green]Success![/] Original image saved to: {last_output_path}")
+        elif output_format == "png":
+            # Save final PNG output (handles crop, transparent, original, and svg-rasterize steps)
+            processor.save(output_path)
+            console.print(f"\n[bold green]Success![/] PNG saved to: {output_path}")
 
     except Exception as e:
         console.print(f"[red]Error:[/] {str(e)}")

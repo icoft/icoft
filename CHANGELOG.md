@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-04-15
+
+### Added
+- `--bg-color` option for adding background color to output (hex, RGB, or named colors)
+- Support for color formats: `#RRGGBB`, `#RGB`, `R,G,B`, and named colors (red, gray, etc.)
+- Background color applied to PNG, SVG, and icon generation outputs
+
+### Changed
+- CLI options reordered alphabetically for better organization
+- SVG mode help text clarified: `embed` mode is NOT scalable
+- README updated with SVG mode explanations
+
+### Fixed
+- Variable name conflict between `--bg-color` parameter and internal `bg_color` variable
+
 ## [0.4.1] - 2026-04-15
 
 ### Fixed
