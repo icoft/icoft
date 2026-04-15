@@ -5,18 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-04-14
+## [0.4.1] - 2026-04-15
 
-### Removed
-- RMBG-1.4 model support (removed due to quality issues)
-- CLI options: `--ai-model`, `--ai-threshold`, `--ai-denoise`, `--hole-fill`, `--hole-fill-threshold`
-- All RMBG-related test scripts in `scripts/` directory
+### Fixed
+- Fix step numbering in CLI output when using `-a -b` together
+- Fix `-o png` incorrectly generating SVG when `--svg` option was also specified
+- `refine_transparency()` now handles semi-transparent pixels properly
+- Remove redundant step number increment logic
 
 ### Changed
-- Simplified AI background removal to use only U²-Net model
-- Improved CLI help text organization (alphabetical order for options)
-- Removed step numbers from processing output
-- Updated command description to mention `-o` option for intermediate output
+- SVG generation now only executes when `-o svg` is explicitly specified
+- Improved background refinement to handle AI-generated edge artifacts
 
 ## [0.3.3] - 2026-04-14
 

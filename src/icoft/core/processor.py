@@ -146,8 +146,8 @@ class ImageProcessor:
         """
         Refine transparency using pre-extracted background color (after AI processing).
 
-        This applies color-based transparency but skips already transparent pixels,
-        making it safe to use after AI background removal.
+        This applies color-based transparency to remove semi-transparent artifacts
+        left by AI background removal. Handles both opaque and semi-transparent pixels.
 
         Args:
             bg_color: Pre-extracted background color (RGB).
@@ -161,19 +161,23 @@ class ImageProcessor:
         if img_array.shape[2] != 4:
             return self
 
-        # Get current alpha channel
-        alpha = img_array[:, :, 3]
-
-        # Only process pixels that are currently opaque (alpha > 128)
-        # This prevents re-processing already transparent areas from AI
-        opaque_mask = alpha > 128
-
-        # Find pixels matching background color among opaque pixels
+        # Find all pixels matching background color (both opaque and semi-transparent)
         color_diff = np.abs(img_array[:, :, :3].astype(float) - bg_color.astype(float))
         is_background = np.all(color_diff < tolerance, axis=2)
 
-        # Combine: must be both opaque AND match background color
-        remove_mask = opaque_mask & is_background
+        # For semi-transparent regions (alpha <= 128), be more aggressive
+        # They're likely AI artifacts and should be removed if they match background
+        alpha = img_array[:, :, 3]
+        semi_transparent_mask = alpha <= 128
+        # For semi-transparent pixels, remove ALL pixels that match background color
+        remove_semi_transparent = semi_transparent_mask & is_background
+
+        # For opaque regions, also remove if matches background
+        opaque_mask = alpha > 128
+        remove_opaque = opaque_mask & is_background
+
+        # Combine all removal masks
+        remove_mask = remove_semi_transparent | remove_opaque
 
         # Set matched pixels to transparent
         alpha[remove_mask] = 0
@@ -186,26 +190,37 @@ class ImageProcessor:
         """
         Convert single-color background to transparent.
 
-        Uses extract_background_color for robust background color estimation.
-
         Args:
             tolerance: Color tolerance for background detection (0-255).
 
         Returns:
             self for method chaining.
         """
-        bg_color = self.extract_background_color()
+        img_array = np.array(self.image)
 
-        if bg_color is not None:
-            img_array = np.array(self.image)
-            alpha = img_array[:, :, 3]
-            is_background = np.all(
-                np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
-            )
-            alpha[is_background] = 0
-            img_array[:, :, 3] = alpha
-            self.image = Image.fromarray(img_array)
+        if img_array.shape[2] == 4:
+            corners = [
+                img_array[0, 0],
+                img_array[0, -1],
+                img_array[-1, 0],
+                img_array[-1, -1],
+            ]
 
+            bg_colors = []
+            for corner in corners:
+                if corner[3] > 200:
+                    bg_colors.append(corner[:3])
+
+            if bg_colors:
+                bg_color = np.mean(bg_colors, axis=0)
+                alpha = img_array[:, :, 3]
+                is_background = np.all(
+                    np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
+                )
+                alpha[is_background] = 0
+                img_array[:, :, 3] = alpha
+
+        self.image = Image.fromarray(img_array)
         return self
 
     def resize(self, size: tuple[int, int], sharpen: bool = True) -> "ImageProcessor":
@@ -296,18 +311,20 @@ class ImageProcessor:
         self,
         erode_size: int = 10,
         post_process_mask: bool = True,
+        bg_threshold: int = 0,
     ) -> "ImageProcessor":
         """
         Remove background using AI (U²-Net via ONNX Runtime).
 
-        This method uses a deep learning model to intelligently separate
-        foreground from background, handling complex backgrounds that simple
-        color-based methods cannot handle.
+        This method uses a lightweight deep learning model to intelligently
+        separate foreground from background, handling complex backgrounds
+        that simple color-based methods cannot handle.
 
         Args:
             erode_size: Erosion size to remove edge shadows (0-50, default: 10)
-                       Larger values remove more edge artifacts but may lose detail.
-            post_process_mask: Enable Gaussian blur for smoother edges (default: True).
+                       Larger values remove more edge artifacts but may lose detail
+            post_process_mask: Enable Gaussian blur for smoother edges (default: True)
+            bg_threshold: Background color threshold for uncertain regions (0-255)
 
         Returns:
             self for method chaining.
@@ -322,6 +339,6 @@ class ImageProcessor:
             self.image,
             erode_size=erode_size,
             post_process_mask=post_process_mask,
+            bg_threshold=bg_threshold,
         )
-
         return self
