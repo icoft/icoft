@@ -1,4 +1,4 @@
-# Icoft - Icon Forge
+# icoft - AI-Powered CLI Icon Generator & Vector Scaler
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -207,14 +207,55 @@ icoft -c 10% -a -b 30 source_file.png output.png -o png
 icoft -c 10% -a source_file.png output.svg -o svg
 ```
 
-### Example 4: CI/CD Pipeline
+### Example 4: CI/CD Pipeline Integration
+
+Icoft is designed for seamless CI/CD integration. Generate icons automatically on every release:
+
+**GitHub Actions Example:**
 
 ```yaml
 # .github/workflows/release.yml
-- name: Generate icons
-  run: |
-    uvx icoft logo.png resources/icons/
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Generate icons from logo
+        run: |
+          uvx icoft assets/logo.png src/resources/icons/ -a -c 5%
+
+      - name: Build application
+        run: |
+          # Your build commands here
+          # Icons are now ready in src/resources/icons/
 ```
+
+**Key Benefits for CI/CD:**
+
+- **Zero Configuration**: No config files needed, everything via CLI arguments
+- **Single Source of Truth**: One logo file generates all platform icons
+- **Consistent Output**: Same icons across all builds and team members
+- **Fast Execution**: Optimized for CI environments with minimal dependencies
+- **Version Controlled**: Logo changes trigger automatic icon regeneration
+
+**Popular Use Cases:**
+
+- **Electron Apps**: Generate icons before `electron-builder`
+- **Tauri Apps**: Build icons before `tauri build`
+- **Flutter Apps**: Create icons before `flutter build`
+- **Python GUI Apps**: Generate icons before PyInstaller/py2app
+- **Web Apps**: Create favicons and PWA icons on deploy
 
 ## Command-Line Options
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-04-15
+
+### Added
+- Enhanced CI/CD Pipeline documentation with complete GitHub Actions example
+- Added Key Benefits and Popular Use Cases sections for CI/CD integration
+
+### Changed
+- Renamed optional dependency from `[icon]` to `[cairosvg]` for clarity
+- Updated README image links to use GitHub raw URLs for PyPI display
+- Improved installation instructions with complete commands for all package managers
+
+### Fixed
+- Fixed image display on PyPI by converting relative paths to absolute GitHub URLs
+
 ## [0.4.2] - 2026-04-15
 
 ### Added
