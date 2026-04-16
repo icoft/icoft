@@ -322,7 +322,9 @@ Options:
                               AI backend for background removal: u2net (U²-Net) or rmbg (RMBG-1.4)
   --rmbg-threshold FLOAT      RMBG-1.4 threshold (0-1, default: 0.997, higher = more aggressive background removal)
   --rmbg-kernel INTEGER       RMBG-1.4 morphological closing kernel size (default: 10, larger = better hole filling)
+  --ref-bg-color TEXT         Reference background color for removal (hex: "#RRGGBB", rgb: "R,G,B", or name: white)
   -b, --bg-threshold INTEGER  Enable color-based background removal with threshold (0-255, default: 10 when enabled)
+  --new-bg-color TEXT         New background color for output (hex: "#RRGGBB", rgb: "R,G,B", or name: red, gray, etc.)
   -s, --svg [normal|embed]    Enable SVG output: normal (vector tracing) or embed (PNG in SVG)
   -S, --svg-speckle INTEGER   Filter SVG noise (1-100, default: 10, only for 'normal' mode)
   -P, --svg-precision INTEGER SVG color precision (1-16, default: 6, only for normal mode)
@@ -330,45 +332,6 @@ Options:
   -p, --platforms TEXT        Platforms: windows, macos, linux, web (default: all)
   -V, --version               Show version
   -h, --help                  Show help message
-```
-
-## Development
-
-### Setup Development Environment
-
-```bash
-# Install with dev dependencies
-uv sync --extra dev
-
-# Run tests
-uv run pytest tests/ -v
-
-# Run linter
-uv run ruff check .
-
-# Run formatter
-uv run ruff format .
-
-# Run type checker
-uv run pyright .
-```
-
-### Project Structure
-
-```
-icoft/
-├── src/icoft/
-│   ├── cli.py              # CLI entry point
-│   ├── core/
-│   │   ├── processor.py    # Image preprocessing
-│   │   └── generator.py    # Icon generation
-│   └── platforms/          # Platform-specific modules
-├── tests/
-│   ├── test_cli.py
-│   ├── test_processor.py
-│   └── test_generator.py
-├── docs/
-└── examples/
 ```
 
 ## Contributing
