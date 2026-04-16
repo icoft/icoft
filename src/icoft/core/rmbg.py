@@ -123,13 +123,13 @@ class RMBGProcessor(ONNXProcessor):
         # Use a moderate threshold to balance foreground/background separation
         # RMBG-1.4 outputs are already probabilities in [0, 1] range
         mask_prob = mask_array
-        
+
         # If threshold >= 1.0, skip binarization and use continuous alpha
         if threshold >= 1.0:
             mask_final = (mask_prob * 255).astype(np.uint8)
         else:
             mask_binary = (mask_prob >= threshold).astype(np.uint8)
-            
+
             # Apply morphological closing to fill small holes inside the foreground
             mask_binary = self._morphological_close(mask_binary > 0, kernel_size)
             mask_final = (mask_binary * 255).astype(np.uint8)
