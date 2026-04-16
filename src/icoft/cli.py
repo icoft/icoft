@@ -20,6 +20,7 @@ Examples:
 from importlib.metadata import version
 
 import click
+import numpy as np
 from rich.console import Console
 
 console = Console()
@@ -35,10 +36,32 @@ __version__ = version("icoft")
 @click.argument("dest_dir", type=click.Path(), required=False)
 @click.option(
     "-a",
-    "use_ai_bg",
-    is_flag=True,
-    default=False,
-    help="Use AI for background removal (U²-Net)",
+    "--ai-backend",
+    "ai_backend",
+    type=click.Choice(["u2net", "rmbg"]),
+    default=None,
+    help="AI backend for background removal: u2net (U²-Net) or rmbg (RMBG-1.4)",
+)
+@click.option(
+    "--rmbg-threshold",
+    "rmbg_threshold",
+    type=float,
+    default=0.997,
+    help="RMBG-1.4 threshold (0-1, default: 0.997, higher = more aggressive background removal)",
+)
+@click.option(
+    "--rmbg-kernel",
+    "rmbg_kernel",
+    type=int,
+    default=10,
+    help="RMBG-1.4 morphological closing kernel size (default: 10, larger = better hole filling)",
+)
+@click.option(
+    "--ref-bg-color",
+    "ref_bg_color",
+    type=str,
+    default=None,
+    help='Reference background color for AI removal (helps model identify what to remove, hex: "#RRGGBB" or "#RGB", rgb: "R,G,B", or name: white, gray, etc.)',
 )
 @click.option(
     "-b",
@@ -49,11 +72,11 @@ __version__ = version("icoft")
     help="Enable simple color-based background removal with threshold (0-255, default: 10 when enabled)",
 )
 @click.option(
-    "--bg-color",
-    "bg_color",
+    "--new-bg-color",
+    "new_bg_color",
     type=str,
     default=None,
-    help='Background color for output (hex: "#RRGGBB" or "#RGB", rgb: "R,G,B", or name: red, gray, etc.)',
+    help='New background color for output (hex: "#RRGGBB" or "#RGB", rgb: "R,G,B", or name: red, gray, etc.)',
 )
 @click.option(
     "-c",
@@ -106,9 +129,10 @@ __version__ = version("icoft")
 def main(
     source_file: str | None,
     dest_dir: str | None,
-    use_ai_bg: bool,
+    ai_backend: str | None,
     bg_threshold: int,
-    bg_color: str | None,
+    ref_bg_color: str | None,
+    new_bg_color: str | None,
     crop_margin: str | None,
     output_format: str,
     platforms: str,
@@ -116,6 +140,8 @@ def main(
     svg_speckle: int,
     svg_precision: int,
     show_version: bool,
+    rmbg_threshold: float,
+    rmbg_kernel: int,
 ) -> None:
     """Icoft - From Single Image to Full-Platform App Icons."""
 
@@ -177,7 +203,7 @@ def main(
 
         # Determine which processing steps are enabled
         crop_enabled = crop_margin is not None
-        transparent_enabled = use_ai_bg or bg_threshold != 0
+        transparent_enabled = ai_backend is not None or bg_threshold != 0
         icon_enabled = output_format == "icon" and not is_single_file
 
         # Step 1: Cropping (optional)
@@ -191,44 +217,64 @@ def main(
 
         # Step 2: Background processing
         # -B: Simple color-based method
-        # -A: AI-based method (U²-Net)
-        # -A -B: AI + refinement
+        # -A u2net/rmbg: AI-based method (U²-Net or RMBG-1.4)
+        # -A <backend> -B: AI + refinement
         if transparent_enabled:
-            if use_ai_bg:
+            # Unified background color extraction logic
+            ref_color_tuple = None
+            ref_color_array = None
+            if ref_bg_color is not None:
+                # User specified reference color - parse it
+                ref_color_tuple = processor._parse_color(ref_bg_color)
+                ref_color_array = np.array(ref_color_tuple)
+                console.print(f"[yellow]Step {step_num}:[/] Using specified reference color: {ref_bg_color}")
+                console.print(f"[green]✓[/green] Reference color parsed: {ref_color_array.astype(int)}")
+                step_num += 1
+            elif bg_threshold != 0:
+                # Auto-detect from image (only if threshold is enabled)
+                console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
+                ref_color_array = processor.extract_background_color()
+                if ref_color_array is not None:
+                    console.print(
+                        f"[green]✓[/green] Background color extracted: {ref_color_array.astype(int)}"
+                    )
+                else:
+                    console.print(
+                        "[yellow]⚠[/yellow] No background color detected, skipping refinement"
+                    )
+                step_num += 1
+
+            if ai_backend is not None:
                 # AI-based background removal
-                # Phase 1: Extract background color BEFORE AI (for optional refinement)
-                extracted_bg_color = None
-                if bg_threshold != 0:  # -B specified with AI for refinement
-                    console.print(f"[yellow]Step {step_num}:[/] Extracting background color...")
-                    extracted_bg_color = processor.extract_background_color()
-                    if extracted_bg_color is not None:
+                # Phase 1: AI-based background removal
+                backend_name = "RMBG-1.4" if ai_backend == "rmbg" else "U²-Net"
+                console.print(f"[yellow]Step {step_num}:[/] Removing background with AI ({backend_name})...")
+                try:
+                    if ai_backend == "rmbg":
+                        processor.remove_background_ai(
+                            backend="rmbg",
+                            rmbg_threshold=rmbg_threshold,
+                            rmbg_kernel=rmbg_kernel,
+                        )
                         console.print(
-                            f"[green]✓[/green] Background color extracted: {extracted_bg_color.astype(int)}"
+                            f"[green]✓[/green] Background removed using AI (RMBG-1.4, threshold={rmbg_threshold}, kernel={rmbg_kernel})"
                         )
                     else:
-                        console.print(
-                            "[yellow]⚠[/yellow] No background color detected, skipping refinement"
-                        )
-                    step_num += 1
-
-                # Phase 2: AI-based background removal
-                console.print(f"[yellow]Step {step_num}:[/] Removing background with AI...")
-                try:
-                    processor.remove_background_ai(bg_threshold=bg_threshold)
-                    console.print("[green]✓[/green] Background removed using AI (U²-Net)")
+                        processor.remove_background_ai(backend="u2net")
+                        console.print("[green]✓[/green] Background removed using AI (U²-Net)")
                 except ImportError as e:
                     console.print(f"[red]Error:[/] {e}")
                     console.print("[yellow]Tip:[/] Install with: uv sync --extra ai")
                     raise SystemExit(1) from None
                 step_num += 1
 
-                # Phase 3: Optional color-based refinement AFTER AI
-                if extracted_bg_color is not None:
+                # Phase 2: Optional color-based refinement AFTER AI
+                if ref_color_array is not None:
                     console.print(
                         f"[yellow]Step {step_num}:[/] Applying color-based refinement (threshold={bg_threshold})..."
                     )
                     processor.refine_transparency(
-                        bg_color=extracted_bg_color, tolerance=bg_threshold
+                        bg_color=ref_color_array, tolerance=bg_threshold
                     )
                     console.print(
                         "[green]✓[/green] Color-based refinement applied (handles both opaque and semi-transparent pixels)"
@@ -236,33 +282,34 @@ def main(
                     step_num += 1
             else:
                 # Simple color-based background removal (-B flag)
-                threshold = bg_threshold if bg_threshold != 0 else 10  # Default to 10 if just -B
-                console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
-                processor.make_background_transparent(tolerance=threshold)
-                console.print(
-                    f"[green]✓[/green] Background made transparent (color-based, threshold={threshold})"
-                )
-                step_num += 1
+                if ref_color_array is not None:
+                    threshold = bg_threshold if bg_threshold != 0 else 10  # Default to 10 if just -B
+                    console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
+                    processor.make_background_transparent(
+                        tolerance=threshold, ref_color=ref_color_array
+                    )
+                    console.print(
+                        f"[green]✓[/green] Background made transparent (color-based, threshold={threshold}, ref_color={ref_bg_color if ref_bg_color else ref_color_array.astype(int)})"
+                    )
+                    step_num += 1
 
             # Apply background color if specified
-            if bg_color is not None:
+            if new_bg_color is not None:
                 console.print(f"[yellow]Step {step_num}:[/] Applying background color...")
                 try:
-                    processor.apply_background(bg_color)
-                    console.print(f"[green]✓[/green] Background color applied: {bg_color}")
+                    processor.apply_background(new_bg_color)
+                    console.print(f"[green]✓[/green] Background color applied: {new_bg_color}")
                 except ValueError as e:
                     console.print(f"[red]Error:[/] Invalid color format: {e}")
                     return
                 step_num += 1
 
-            # Continue to final output step
-
-        # Apply background color for SVG/icon output (if not already applied in transparent step)
-        if bg_color is not None and not transparent_enabled:
+        # Apply background color if not already applied above
+        elif new_bg_color is not None:
             console.print(f"[yellow]Step {step_num}:[/] Applying background color...")
             try:
-                processor.apply_background(bg_color)
-                console.print(f"[green]✓[/green] Background color applied: {bg_color}")
+                processor.apply_background(new_bg_color)
+                console.print(f"[green]✓[/green] Background color applied: {new_bg_color}")
             except ValueError as e:
                 console.print(f"[red]Error:[/] Invalid color format: {e}")
                 return

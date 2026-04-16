@@ -10,7 +10,7 @@ Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP)
 
 - **Icon Generation**: Generate complete app icon sets for Windows, macOS, Linux, and Web
 - **Image Cropping**: Remove outer borders by specifying command options, with customizable margins
-- **Background Removal**: Simple background transparency algorithm based on background color sampling and specified thresholds, or AI-based background removal using U²-Net
+- **Background Removal**: Simple background transparency algorithm based on background color sampling and specified thresholds, or AI-based background removal using U²-Net or RMBG-1.4
 - **Vectorization**: High-quality raster to SVG conversion
   - `normal` mode: True vector tracing for infinite scaling (best for simple graphics)
   - `embed` mode: PNG embedded in SVG wrapper (preserves gradients/photos, NOT scalable)
@@ -40,12 +40,50 @@ This example shows a logo with low contrast between foreground and background, w
 
 This example shows a high-contrast simple geometric shape, ideal for color-based background removal:
 
-| Original | Color-based (-b 100) | AI-based (-a) | Vectorized (-s normal) | Embedded (-s embed) |
+| Original | Color-based (-b 100) | AI-based (-a u2net) | Vectorized (-s normal) | Embedded (-s embed) |
 |:---:|:---:|:---:|:---:|:---:|
 | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-a.png" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100-normal.svg" width="100"> | <img src="https://raw.githubusercontent.com/icoft/icoft/main/docs/images/cogist07-b100-embed.svg" width="100"> |
 | High contrast simple geometry | Perfect removal | Cannot handle center cutout | Perfect vectorization | Perfect, NOT scalable |
 
 > **Note**: All examples above are displayed on a neutral gray background (`#808080`) to show transparent areas.
+
+## AI Backend Comparison
+
+Icoft supports two AI backends for background removal:
+
+### U²-Net (Default)
+- **Best for**: General purpose background removal with smooth edges
+- **Model size**: ~176MB (full precision)
+- **Processing**: Uses erosion and Gaussian blur for edge smoothing
+- **Parameters**: `erode_size` (default: 10)
+
+### RMBG-1.4
+- **Best for**: Complex backgrounds requiring aggressive separation
+- **Model size**: ~44MB (quantized)
+- **Processing**: Uses binarization threshold and morphological closing
+- **Parameters**:
+  - `--rmbg-threshold`: Binarization threshold (0-1, default: 0.997)
+    - Higher values = more aggressive background removal
+    - Lower values = better foreground preservation
+  - `--rmbg-kernel`: Morphological closing kernel size (default: 10)
+    - Larger values = better hole filling in foreground
+    - Smaller values = less aggressive smoothing
+
+### Choosing the Right Backend
+
+```bash
+# For most cases, U²-Net works well
+icoft image.png output.png -a u2net
+
+# For complex backgrounds or when you need fine control
+icoft image.png output.png -a rmbg --rmbg-threshold 0.997 --rmbg-kernel 10
+
+# If foreground has holes, increase kernel size
+icoft image.png output.png -a rmbg --rmbg-kernel 15
+
+# If background is not fully removed, increase threshold
+icoft image.png output.png -a rmbg --rmbg-threshold 0.999
+```
 
 ## Installation
 
@@ -97,17 +135,25 @@ icoft source_file.png dest_dir/
 # Crop and generate icons
 icoft -c 10% source_file.png dest_dir/
 
-# AI background removal + generate icons
-icoft -a source_file.png dest_dir/
+# AI background removal with U²-Net
+icoft -a u2net source_file.png dest_dir/
+
+# AI background removal with RMBG-1.4 (default parameters)
+icoft -a rmbg source_file.png dest_dir/
+
+# AI background removal with RMBG-1.4 (custom parameters)
+icoft -a rmbg --rmbg-threshold 0.997 --rmbg-kernel 10 source_file.png dest_dir/
 
 # Color threshold background removal (threshold 30)
 icoft -b 30 source_file.png dest_dir/
 
 # AI + color threshold refinement + generate icons
-icoft -a -b 30 source_file.png dest_dir/
+icoft -a u2net -b 30 source_file.png dest_dir/
+icoft -a rmbg -b 30 source_file.png dest_dir/
 
 # Output single processed PNG
-icoft -c 10% -a source_file.png output.png -o png
+icoft -c 10% -a u2net source_file.png output.png -o png
+icoft -c 10% -a rmbg source_file.png output.png -o png
 
 # Output single SVG (vector tracing)
 icoft source_file.png output.svg -o svg
@@ -116,7 +162,8 @@ icoft source_file.png output.svg -o svg
 icoft source_file.png output.svg -s embed -o svg
 
 # Crop + AI background removal + output SVG
-icoft -c 10% -a source_file.png output.svg -o svg
+icoft -c 10% -a u2net source_file.png output.svg -o svg
+icoft -c 10% -a rmbg source_file.png output.svg -o svg
 
 # Generate icons for specific platforms only
 icoft source_file.png icons/ -p windows,web
@@ -188,14 +235,22 @@ This performs:
 # Crop and save as PNG
 icoft -c 10% source_file.png cropped.png -o png
 
-# AI background removal and save as PNG
-icoft -a source_file.png transparent.png -o png
+# AI background removal with U²-Net and save as PNG
+icoft -a u2net source_file.png transparent.png -o png
+
+# AI background removal with RMBG-1.4 and save as PNG
+icoft -a rmbg source_file.png transparent.png -o png
+
+# AI background removal with custom RMBG parameters
+icoft -a rmbg --rmbg-threshold 0.999 --rmbg-kernel 12 source_file.png output.png -o png
 
 # Crop + AI background removal + color refinement + save as PNG
-icoft -c 10% -a -b 30 source_file.png output.png -o png
+icoft -c 10% -a u2net -b 30 source_file.png output.png -o png
+icoft -c 10% -a rmbg -b 30 source_file.png output.png -o png
 
 # Crop + AI background removal + vectorization to SVG
-icoft -c 10% -a source_file.png output.svg -o svg
+icoft -c 10% -a u2net source_file.png output.svg -o svg
+icoft -c 10% -a rmbg source_file.png output.svg -o svg
 ```
 
 ### Example 4: CI/CD Pipeline Integration
@@ -224,7 +279,7 @@ jobs:
 
       - name: Generate icons from logo
         run: |
-          uvx icoft assets/logo.png src/resources/icons/ -a -c 5%
+          uvx icoft assets/logo.png src/resources/icons/ -a rmbg -c 5%
 
       - name: Build application
         run: |
@@ -250,7 +305,7 @@ jobs:
 
 ## Command-Line Options
 
-```
+```text
 Usage: icoft [OPTIONS] SOURCE_FILE DEST_DIR
        icoft [OPTIONS] SOURCE_FILE OUTPUT_FILE -o FORMAT
 
@@ -263,7 +318,10 @@ Output Modes:
 
 Options:
   -c, --crop-margin TEXT      Margin for cropping (e.g., 5%, 10px)
-  -a, --use-ai-bg             Use AI for background removal (U²-Net)
+  -a, --ai-backend [u2net|rmbg]
+                              AI backend for background removal: u2net (U²-Net) or rmbg (RMBG-1.4)
+  --rmbg-threshold FLOAT      RMBG-1.4 threshold (0-1, default: 0.997, higher = more aggressive background removal)
+  --rmbg-kernel INTEGER       RMBG-1.4 morphological closing kernel size (default: 10, larger = better hole filling)
   -b, --bg-threshold INTEGER  Enable color-based background removal with threshold (0-255, default: 10 when enabled)
   -s, --svg [normal|embed]    Enable SVG output: normal (vector tracing) or embed (PNG in SVG)
   -S, --svg-speckle INTEGER   Filter SVG noise (1-100, default: 10, only for 'normal' mode)

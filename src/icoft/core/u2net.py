@@ -5,8 +5,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from .onnx_processor import ONNXProcessor
+from .processor import ImageProcessor
 
-class U2NetProcessor:
+
+class U2NetProcessor(ONNXProcessor):
     """U²-Net processor for AI-based background removal.
 
     Uses ONNX Runtime for inference with the lightweight u2netp model.
@@ -16,50 +19,10 @@ class U2NetProcessor:
     MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
     MODEL_SIZE_MB = 4.7
 
-    def __init__(self, model_path: Path | None = None):
-        """Initialize U²-Net processor.
-
-        Args:
-            model_path: Path to ONNX model file. If None, uses default location.
-        """
-        try:
-            import onnxruntime as ort  # type: ignore[import-untyped]
-        except ImportError:
-            raise ImportError(
-                "AI background removal requires 'onnxruntime' package. "
-                "Install with: pip install icoft[ai]"
-            ) from None
-
-        self.model_path = model_path or self._get_default_model_path()
-
-        if not self.model_path.exists():
-            self._download_model()
-
-        self.session = ort.InferenceSession(str(self.model_path))
-        self.input_name = self.session.get_inputs()[0].name
-
     def _get_default_model_path(self) -> Path:
         """Get default model storage path."""
         cache_dir = Path.home() / ".u2net"
         return cache_dir / "u2netp.onnx"
-
-    def _download_model(self) -> None:
-        """Download U²-Netp model from rembg releases."""
-        import urllib.request
-
-        print(f"Downloading U²-Netp model ({self.MODEL_SIZE_MB}MB)...")
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-
-        def reporthook(block_num: int, block_size: int, total_size: int) -> None:
-            downloaded = block_num * block_size
-            if total_size > 0:
-                percent = min(100, downloaded * 100 / total_size)
-                mb_downloaded = downloaded / (1024 * 1024)
-                mb_total = total_size / (1024 * 1024)
-                print(f"\rProgress: {percent:.1f}% ({mb_downloaded:.1f}/{mb_total:.1f} MB)", end="")
-
-        urllib.request.urlretrieve(self.MODEL_URL, str(self.model_path), reporthook)
-        print(f"\nModel downloaded to {self.model_path}")
 
     def remove_background(
         self,
@@ -67,6 +30,7 @@ class U2NetProcessor:
         erode_size: int = 0,
         post_process_mask: bool = True,
         bg_threshold: int = 0,
+        **kwargs,  # noqa: ARG002 - Accept extra kwargs for interface compatibility
     ) -> Image.Image:
         """Remove background from image using U²-Net.
 
@@ -154,12 +118,7 @@ class U2NetProcessor:
 
         # Smart edge refinement: use original image colors to clean up AI artifacts
         # Get the original image as numpy array
-        if original.mode != "RGBA":
-            original_rgb = original.convert("RGB")
-        else:
-            original_rgb = original.convert("RGB")
-
-        original_array = np.array(original_rgb)
+        original_array = np.array(original.convert("RGB"))
 
         # Detect background color from corners (assuming corners are background)
         h, w = original_array.shape[:2]
@@ -175,11 +134,11 @@ class U2NetProcessor:
         # If yes, make them transparent even if model says they're foreground
         uncertain_mask = (mask_array > 128) & (mask_array < 200)
         if np.any(uncertain_mask):
-            # Calculate color distance to background
-            color_diff = np.abs(original_array.astype(float) - bg_color)
             # Use bg_threshold if provided, otherwise default to 40
             tolerance = bg_threshold if bg_threshold > 0 else 40
-            is_bg_color = np.all(color_diff < tolerance, axis=2)
+            is_bg_color = ImageProcessor._is_background_color(
+                original_array[:, :, :3], bg_color, tolerance
+            )
 
             # Make uncertain regions transparent if they match background color
             mask_array[uncertain_mask & is_bg_color] = 0

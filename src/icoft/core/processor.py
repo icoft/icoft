@@ -13,6 +13,27 @@ class ImageProcessor:
     Handles cropping, background removal, and noise reduction.
     """
 
+    @staticmethod
+    def _is_background_color(
+        pixel_rgb: np.ndarray, ref_color: np.ndarray, tolerance: int
+    ) -> np.ndarray:
+        """
+        Determine if pixel color matches reference background color.
+
+        This is a unified utility for color-based background detection,
+        used by both simple threshold method and AI refinement.
+
+        Args:
+            pixel_rgb: Pixel RGB values, shape (N, 3) or (H, W, 3)
+            ref_color: Reference background color, shape (3,)
+            tolerance: Color tolerance (0-255), inclusive
+
+        Returns:
+            Boolean mask where True means "is background color"
+        """
+        color_diff = np.abs(pixel_rgb.astype(float) - ref_color.astype(float))
+        return np.all(color_diff <= tolerance, axis=-1)
+
     def __init__(self, image_path: str | Path) -> None:
         """
         Initialize the image processor.
@@ -162,8 +183,9 @@ class ImageProcessor:
             return self
 
         # Find all pixels matching background color (both opaque and semi-transparent)
-        color_diff = np.abs(img_array[:, :, :3].astype(float) - bg_color.astype(float))
-        is_background = np.all(color_diff < tolerance, axis=2)
+        is_background = self._is_background_color(
+            img_array[:, :, :3], bg_color, tolerance
+        )
 
         # For semi-transparent regions (alpha <= 128), be more aggressive
         # They're likely AI artifacts and should be removed if they match background
@@ -186,12 +208,18 @@ class ImageProcessor:
         self.image = Image.fromarray(img_array)
         return self
 
-    def make_background_transparent(self, tolerance: int = 10) -> "ImageProcessor":
+    def make_background_transparent(
+        self, tolerance: int = 10, ref_color: str | np.ndarray | None = None
+    ) -> "ImageProcessor":
         """
         Convert single-color background to transparent.
 
         Args:
             tolerance: Color tolerance for background detection (0-255).
+            ref_color: Reference background color. Can be:
+                      - str: hex, rgb, or name (e.g., "#FFFFFF", "255,255,255", "white")
+                      - np.ndarray: RGB array [R, G, B]
+                      If provided, uses this color instead of auto-detecting from corners.
 
         Returns:
             self for method chaining.
@@ -199,26 +227,39 @@ class ImageProcessor:
         img_array = np.array(self.image)
 
         if img_array.shape[2] == 4:
-            corners = [
-                img_array[0, 0],
-                img_array[0, -1],
-                img_array[-1, 0],
-                img_array[-1, -1],
-            ]
+            # Determine background color
+            if ref_color is not None:
+                # Use specified reference color
+                if isinstance(ref_color, np.ndarray):
+                    bg_color = ref_color
+                else:
+                    bg_color = np.array(self._parse_color(ref_color))
+            else:
+                # Auto-detect from corners
+                corners = [
+                    img_array[0, 0],
+                    img_array[0, -1],
+                    img_array[-1, 0],
+                    img_array[-1, -1],
+                ]
 
-            bg_colors = []
-            for corner in corners:
-                if corner[3] > 200:
-                    bg_colors.append(corner[:3])
+                bg_colors = []
+                for corner in corners:
+                    if corner[3] > 200:
+                        bg_colors.append(corner[:3])
 
-            if bg_colors:
+                if not bg_colors:
+                    return self
+
                 bg_color = np.mean(bg_colors, axis=0)
-                alpha = img_array[:, :, 3]
-                is_background = np.all(
-                    np.abs(img_array[:, :, :3].astype(float) - bg_color) < tolerance, axis=2
-                )
-                alpha[is_background] = 0
-                img_array[:, :, 3] = alpha
+
+            # Apply transparency
+            alpha = img_array[:, :, 3]
+            is_background = self._is_background_color(
+                img_array[:, :, :3], bg_color, tolerance
+            )
+            alpha[is_background] = 0
+            img_array[:, :, 3] = alpha
 
         self.image = Image.fromarray(img_array)
         return self
@@ -309,22 +350,28 @@ class ImageProcessor:
 
     def remove_background_ai(
         self,
+        backend: str = "u2net",
         erode_size: int = 10,
         post_process_mask: bool = True,
         bg_threshold: int = 0,
+        rmbg_threshold: float = 0.997,
+        rmbg_kernel: int = 10,
     ) -> "ImageProcessor":
         """
-        Remove background using AI (U²-Net via ONNX Runtime).
+        Remove background using AI (U²-Net or RMBG-1.4 via ONNX Runtime).
 
         This method uses a lightweight deep learning model to intelligently
         separate foreground from background, handling complex backgrounds
         that simple color-based methods cannot handle.
 
         Args:
+            backend: AI backend to use: "u2net" or "rmbg" (default: "u2net")
             erode_size: Erosion size to remove edge shadows (0-50, default: 10)
                        Larger values remove more edge artifacts but may lose detail
             post_process_mask: Enable Gaussian blur for smoother edges (default: True)
             bg_threshold: Background color threshold for uncertain regions (0-255)
+            rmbg_threshold: RMBG-1.4 threshold (0-1, default: 0.997, higher = more aggressive)
+            rmbg_kernel: RMBG-1.4 morphological closing kernel size (default: 10)
 
         Returns:
             self for method chaining.
@@ -332,15 +379,25 @@ class ImageProcessor:
         Raises:
             ImportError: If onnxruntime is not installed.
         """
-        from .u2net import U2NetProcessor
+        if backend == "rmbg":
+            from .rmbg import RMBGProcessor
 
-        processor = U2NetProcessor()
-        self.image = processor.remove_background(
-            self.image,
-            erode_size=erode_size,
-            post_process_mask=post_process_mask,
-            bg_threshold=bg_threshold,
-        )
+            processor = RMBGProcessor()
+            self.image = processor.remove_background(
+                self.image,
+                threshold=rmbg_threshold,
+                kernel_size=rmbg_kernel,
+            )
+        else:
+            from .u2net import U2NetProcessor
+
+            processor = U2NetProcessor()
+            self.image = processor.remove_background(
+                self.image,
+                erode_size=erode_size,
+                post_process_mask=post_process_mask,
+                bg_threshold=bg_threshold,
+            )
         return self
 
     def apply_background(self, color: tuple[int, int, int] | str) -> "ImageProcessor":
