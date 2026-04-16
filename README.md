@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/pypi/v/icoft.svg)](https://pypi.org/project/icoft/)
 
-Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into app icons for all platforms (Windows, macOS, Linux, Web). It runs on almost all mainstream desktop operating systems, supports AI image recognition, vectorized lossless scaling, and reverse rasterization. In addition, it can perform simple image preprocessing tasks such as cropping, background transparency based on color recognition and AI recognition, and vectorization. Therefore, it can also be used as a cutout tool or image conversion tool.
+Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into app icons for all platforms (Windows, macOS, Linux, Web). It runs on almost all mainstream operating systems, supports AI image recognition, vectorized lossless scaling, and reverse rasterization. In addition, it can perform simple image preprocessing tasks such as cropping, background transparency based on color recognition and AI recognition, and vectorization. Therefore, it can also be used as a cutout tool or image conversion tool.
 
 ## Features
 
