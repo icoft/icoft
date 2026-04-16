@@ -53,19 +53,19 @@ Icoft supports two AI backends for background removal:
 
 ### U²-Net (Default)
 - **Best for**: General purpose background removal with smooth edges
-- **Model size**: ~176MB (full precision)
-- **Processing**: Uses erosion and Gaussian blur for edge smoothing
-- **Parameters**: `erode_size` (default: 10)
+- **Model size**: ~4.7MB (lightweight u2netp)
+- **Processing**: Outputs continuous alpha values for smooth edge transitions
+- **Parameters**: None (uses default settings for best quality)
 
 ### RMBG-1.4
 - **Best for**: Complex backgrounds requiring aggressive separation
 - **Model size**: ~44MB (quantized)
 - **Processing**: Uses binarization threshold and morphological closing
 - **Parameters**:
-  - `--rmbg-threshold`: Binarization threshold (0-1, default: 0.997)
+  - `-t, --rmbg-threshold`: Binarization threshold (0-1, default: 0.997)
     - Higher values = more aggressive background removal
     - Lower values = better foreground preservation
-  - `--rmbg-kernel`: Morphological closing kernel size (default: 10)
+  - `-k, --rmbg-kernel`: Morphological closing kernel size (default: 10)
     - Larger values = better hole filling in foreground
     - Smaller values = less aggressive smoothing
 
@@ -76,13 +76,16 @@ Icoft supports two AI backends for background removal:
 icoft image.png output.png -a u2net
 
 # For complex backgrounds or when you need fine control
-icoft image.png output.png -a rmbg --rmbg-threshold 0.997 --rmbg-kernel 10
+icoft image.png output.png -a rmbg -t 0.997 -k 10
 
 # If foreground has holes, increase kernel size
-icoft image.png output.png -a rmbg --rmbg-kernel 15
+icoft image.png output.png -a rmbg -k 15
 
 # If background is not fully removed, increase threshold
-icoft image.png output.png -a rmbg --rmbg-threshold 0.999
+icoft image.png output.png -a rmbg -t 0.999
+
+# Specify reference background color for better results
+icoft image.png output.png -a rmbg -B "white" -c 10%
 ```
 
 ## Installation

@@ -6,7 +6,6 @@ import numpy as np
 from PIL import Image
 
 from .onnx_processor import ONNXProcessor
-from .processor import ImageProcessor
 
 
 class U2NetProcessor(ONNXProcessor):
@@ -47,7 +46,7 @@ class U2NetProcessor(ONNXProcessor):
 
         # Inference
         outputs = self.session.run(None, {self.input_name: input_tensor})
-        mask = outputs[0][0, 0]  # Get first batch, first channel
+        mask = outputs[0][0, 0]  # Get first batch, first channel (already in [0,1] range via sigmoid)
 
         # Postprocess
         result_image = self._postprocess(
@@ -97,7 +96,7 @@ class U2NetProcessor(ONNXProcessor):
         mask: np.ndarray,
         erode_size: int = 0,  # noqa: ARG002
         post_process_mask: bool = True,  # noqa: ARG002
-        bg_threshold: int = 0,
+        bg_threshold: int = 0,  # noqa: ARG002
     ) -> Image.Image:
         """Postprocess mask and apply to original image.
 
@@ -106,6 +105,7 @@ class U2NetProcessor(ONNXProcessor):
             mask: Predicted mask (H, W) with values in [0, 1]
             erode_size: Erosion size to remove edge shadows
             post_process_mask: Enable mask post-processing
+            bg_threshold: Color threshold for uncertain edge regions
 
         Returns:
             PIL Image with transparent background
@@ -117,31 +117,6 @@ class U2NetProcessor(ONNXProcessor):
         mask_array = np.array(mask_resized)
 
         # Smart edge refinement: use original image colors to clean up AI artifacts
-        # Get the original image as numpy array
-        original_array = np.array(original.convert("RGB"))
-
-        # Detect background color from corners (assuming corners are background)
-        h, w = original_array.shape[:2]
-        corner_samples = [
-            original_array[0, 0],
-            original_array[0, w - 1],
-            original_array[h - 1, 0],
-            original_array[h - 1, w - 1],
-        ]
-        bg_color = np.mean(corner_samples, axis=0)
-
-        # For uncertain edge regions (128-200), check if they match background color
-        # If yes, make them transparent even if model says they're foreground
-        uncertain_mask = (mask_array > 128) & (mask_array < 200)
-        if np.any(uncertain_mask):
-            # Use bg_threshold if provided, otherwise default to 40
-            tolerance = bg_threshold if bg_threshold > 0 else 40
-            is_bg_color = ImageProcessor._is_background_color(
-                original_array[:, :, :3], bg_color, tolerance
-            )
-
-            # Make uncertain regions transparent if they match background color
-            mask_array[uncertain_mask & is_bg_color] = 0
 
         mask_pil_clean = Image.fromarray(mask_array.astype(np.uint8))
 

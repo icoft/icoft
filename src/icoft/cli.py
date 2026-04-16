@@ -43,6 +43,7 @@ __version__ = version("icoft")
     help="AI backend for background removal: u2net (U²-Net) or rmbg (RMBG-1.4)",
 )
 @click.option(
+    "-t",
     "--rmbg-threshold",
     "rmbg_threshold",
     type=float,
@@ -50,6 +51,7 @@ __version__ = version("icoft")
     help="RMBG-1.4 threshold (0-1, default: 0.997, higher = more aggressive background removal)",
 )
 @click.option(
+    "-k",
     "--rmbg-kernel",
     "rmbg_kernel",
     type=int,
@@ -57,6 +59,7 @@ __version__ = version("icoft")
     help="RMBG-1.4 morphological closing kernel size (default: 10, larger = better hole filling)",
 )
 @click.option(
+    "-B",
     "--ref-bg-color",
     "ref_bg_color",
     type=str,
