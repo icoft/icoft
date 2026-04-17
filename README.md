@@ -4,11 +4,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/pypi/v/icoft.svg)](https://pypi.org/project/icoft/)
 
-Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into app icons for all platforms (Windows, macOS, Linux, Web). It runs on almost all mainstream operating systems, supports AI image recognition, vectorized lossless scaling, and reverse rasterization. In addition, it can perform simple image preprocessing tasks such as cropping, background transparency based on color recognition and AI recognition, and vectorization. Therefore, it can also be used as a cutout tool or image conversion tool.
+Icoft is a command-line tool that converts a single image (PNG, JPG, JPEG, WEBP) into app icons for all platforms (Windows, macOS, Linux, Web, iOS, Android). It runs on almost all mainstream operating systems, supports AI image recognition, vectorized lossless scaling, and reverse rasterization. In addition, it can perform simple image preprocessing tasks such as cropping, background transparency based on color recognition and AI recognition, and vectorization. Therefore, it can also be used as a cutout tool or image conversion tool.
 
 ## Features
 
-- **Icon Generation**: Generate complete app icon sets for Windows, macOS, Linux, and Web
+- **Icon Generation**: Generate complete app icon sets for Windows, macOS, Linux, Web, iOS, and Android
 - **Image Cropping**: Remove outer borders by specifying command options, with customizable margins
 - **Background Removal**: Simple background transparency algorithm based on background color sampling and specified thresholds, or AI-based background removal using U²-Net or RMBG-1.4
 - **Vectorization**: High-quality raster to SVG conversion
@@ -171,6 +171,15 @@ icoft -c 10% -a rmbg source_file.png output.svg -o svg
 # Generate icons for specific platforms only
 icoft source_file.png icons/ -p windows,web
 icoft source_file.png icons/ -p macos,linux
+
+# Generate iOS icons only
+icoft source_file.png icons/ -p ios
+
+# Generate Android icons only
+icoft source_file.png icons/ -p android
+
+# Generate mobile platform icons
+icoft source_file.png icons/ -p ios,android
 ```
 
 ## Usage Examples
@@ -211,12 +220,33 @@ dest_dir/
 │       ├── 128x128/apps/app.png
 │       ├── 256x256/apps/app.png
 │       └── scalable/apps/app.svg
-└── web/
-    ├── favicon.ico                          # Browser favicon
-    ├── apple-touch-icon.png                 # iOS home screen icon
-    ├── icon-192x192.png                     # PWA icon
-    ├── icon-512x512.png                     # PWA icon
-    └── manifest.json                        # PWA manifest
+├── web/
+│   ├── favicon.ico                          # Browser favicon
+│   ├── apple-touch-icon.png                 # iOS home screen icon
+│   ├── icon-192x192.png                     # PWA icon
+│   ├── icon-512x512.png                     # PWA icon
+│   └── manifest.json                        # PWA manifest
+├── ios/
+│   └── AppIcon.appiconset/
+│       ├── Contents.json                    # Asset Catalog configuration
+│       ├── Icon-AppStore-1024@1x.png        # App Store icon (1024×1024)
+│       ├── Icon-App-60@2x.png               # iPhone app icon (120×120)
+│       ├── Icon-App-60@3x.png               # iPhone app icon (180×180)
+│       ├── Icon-App-76@1x.png               # iPad app icon (76×76)
+│       ├── Icon-App-76@2x.png               # iPad app icon (152×152)
+│       ├── Icon-App-83.5@2x.png             # iPad Pro app icon (167×167)
+│       └── ...                              # Additional sizes for notifications, settings, etc.
+└── android/
+    ├── playstore-icon.png                   # Google Play Store icon (512×512)
+    ├── AndroidManifest-snippet.xml          # Manifest configuration example
+    ├── README.md                            # Installation instructions
+    └── res/
+        ├── mipmap-mdpi/                     # 48×48 (1x)
+        ├── mipmap-hdpi/                     # 72×72 (1.5x)
+        ├── mipmap-xhdpi/                    # 96×96 (2x)
+        ├── mipmap-xxhdpi/                   # 144×144 (3x)
+        ├── mipmap-xxxhdpi/                  # 192×192 (4x)
+        └── mipmap-anydpi-v26/               # Adaptive icons (Android 8.0+)
 ```
 
 ### Example 2: Crop and Remove Background

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-17
+
+### Added
+- **iOS platform support**: Complete iOS icon set generation with Asset Catalog
+  - All required sizes for iPhone, iPad, and App Store (13 icons total)
+  - Contents.json configuration file for Xcode integration
+  - RGB mode icons (no alpha channel) as per iOS requirements
+  - Support for notification, settings, Spotlight, and app icons
+- **Android platform support**: Full adaptive icon generation
+  - Adaptive icons with foreground/background separation (Android 8.0+)
+  - Legacy icons for backward compatibility
+  - All density buckets: mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
+  - Google Play Store icon (512x512)
+  - Installation instructions and AndroidManifest snippet
+- PWA manifest.json enhanced with `background_color` and `theme_color` fields
+- Additional PWA manifest fields: `name`, `short_name`, `start_url`, `display`
+
+### Changed
+- Updated `apple-touch-icon.png` to RGB mode (removed alpha channel for iOS compatibility)
+- CLI help text updated to include iOS and Android in platform options
+- Default platform list now includes all 6 platforms: windows, macos, linux, web, ios, android
+
+### Fixed
+- Icon compliance issues across all platforms
+- iOS touch icon transparency issue (now properly converted to RGB)
+- PWA manifest.json missing required fields
+
+## [0.5.2] - 2026-04-17
+
+### Added
+- Keywords to pyproject.toml for better PyPI search visibility
+
 ## [0.4.3] - 2026-04-15
 
 ### Added

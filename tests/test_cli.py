@@ -41,7 +41,7 @@ class TestCLI:
         result = runner.invoke(main, ["--version"])
 
         assert result.exit_code == 0
-        assert "0.5" in result.output
+        assert "0.6" in result.output
 
     def test_basic_conversion(self, sample_image, tmp_path):
         """Test basic icon conversion."""
