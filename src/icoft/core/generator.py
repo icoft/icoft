@@ -344,6 +344,14 @@ class IconGenerator:
 
         apple_touch_path = output_path / "apple-touch-icon.png"
         apple_touch = self.image.resize((180, 180), Image.Resampling.LANCZOS)
+        # iOS doesn't support transparency, convert to RGB
+        if apple_touch.mode == "RGBA":
+            # Create white background and composite
+            background = Image.new("RGB", apple_touch.size, (255, 255, 255))
+            background.paste(apple_touch, mask=apple_touch.split()[3])
+            apple_touch = background
+        else:
+            apple_touch = apple_touch.convert("RGB")
         apple_touch.save(apple_touch_path, "PNG")
 
         pwa_sizes = [192, 512]
@@ -389,6 +397,12 @@ class IconGenerator:
         import json
 
         manifest = {
+            "name": "Application",
+            "short_name": "App",
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#ffffff",
             "icons": [
                 {
                     "src": "icon-192x192.png",
@@ -402,7 +416,7 @@ class IconGenerator:
                     "type": "image/png",
                     "purpose": "any maskable",
                 },
-            ]
+            ],
         }
 
         output_path.write_text(
