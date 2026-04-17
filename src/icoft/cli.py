@@ -102,7 +102,7 @@ __version__ = version("icoft")
     "--platforms",
     type=str,
     default="all",
-    help="Comma-separated platforms: windows, macos, linux, web (default: all)",
+    help="Comma-separated platforms: windows, macos, linux, web, ios, android (default: all)",
 )
 @click.option(
     "-s",
@@ -405,7 +405,9 @@ def main(
             )
 
             platform_list = (
-                platforms.split(",") if platforms != "all" else ["windows", "macos", "linux", "web"]
+                platforms.split(",")
+                if platforms != "all"
+                else ["windows", "macos", "linux", "web", "ios", "android"]
             )
 
             for platform in platform_list:
@@ -426,6 +428,14 @@ def main(
                     console.print("[yellow]Generating:[/] Web icons...")
                     generator.generate_web()
                     console.print("[green]✓[/green] Web icons generated")
+                elif platform == "ios":
+                    console.print("[yellow]Generating:[/] iOS icons...")
+                    generator.generate_ios()
+                    console.print("[green]✓[/green] iOS icons generated")
+                elif platform == "android":
+                    console.print("[yellow]Generating:[/] Android icons...")
+                    generator.generate_android()
+                    console.print("[green]✓[/green] Android icons generated")
                 else:
                     console.print(f"[red]Warning:[/] Unknown platform: {platform}")
 

@@ -11,7 +11,7 @@ class IconGenerator:
     """
     Icon generator for multiple platforms.
 
-    Generates icons in various formats for Windows, macOS, Linux, and Web.
+    Generates icons in various formats for Windows, macOS, Linux, Web, iOS, and Android.
     """
 
     def __init__(
@@ -372,6 +372,232 @@ class IconGenerator:
 
         manifest_path = output_path / "manifest.json"
         self._generate_manifest(manifest_path)
+
+    def generate_ios(self) -> None:
+        """
+        Generate iOS icon set for App Store and device usage.
+
+        Creates icons in the required sizes for iPhone, iPad, and App Store.
+        All icons are RGB mode (no alpha channel) as per iOS requirements.
+        Directory structure: ios/AppIcon.appiconset/
+        """
+        output_path = self.output_dir / "ios" / "AppIcon.appiconset"
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # iOS icon specifications (all must be RGB, no transparency)
+        # Format: (size, scale, filename, idiom)
+        icon_specs = [
+            # iPhone/iPad notification icons (20pt)
+            (40, "@2x", "Icon-Notification-20@2x.png", "iphone"),
+            (60, "@3x", "Icon-Notification-20@3x.png", "iphone"),
+            # iPhone/iPad settings icons (29pt)
+            (58, "@2x", "Icon-Settings-29@2x.png", "iphone"),
+            (87, "@3x", "Icon-Settings-29@3x.png", "iphone"),
+            # iPhone Spotlight icons (40pt)
+            (80, "@2x", "Icon-Spotlight-40@2x.png", "iphone"),
+            (120, "@3x", "Icon-Spotlight-40@3x.png", "iphone"),
+            # iPhone app icons (60pt)
+            (120, "@2x", "Icon-App-60@2x.png", "iphone"),
+            (180, "@3x", "Icon-App-60@3x.png", "iphone"),
+            # iPad Spotlight icons (40pt)
+            (80, "@2x", "Icon-Spotlight-40-iPad@2x.png", "ipad"),
+            # iPad app icons (76pt)
+            (76, "@1x", "Icon-App-76@1x.png", "ipad"),
+            (152, "@2x", "Icon-App-76@2x.png", "ipad"),
+            # iPad Pro app icons (83.5pt)
+            (167, "@2x", "Icon-App-83.5@2x.png", "ipad"),
+            # App Store icon (required)
+            (1024, "@1x", "Icon-AppStore-1024@1x.png", "ios-marketing"),
+        ]
+
+        # Generate all icons
+        for size, _scale, filename, _idiom in icon_specs:
+            resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
+
+            # iOS requires RGB mode (no alpha channel)
+            if resized.mode == "RGBA":
+                # Create white background and composite
+                background = Image.new("RGB", resized.size, (255, 255, 255))
+                background.paste(resized, mask=resized.split()[3])
+                resized = background
+            else:
+                resized = resized.convert("RGB")
+
+            icon_path = output_path / filename
+            resized.save(icon_path, "PNG")
+
+        # Generate Contents.json for Asset Catalog
+        contents = {
+            "images": [],
+            "info": {"version": 1, "author": "icoft"},
+        }
+
+        # Map filenames to Contents.json entries
+        for size, scale, filename, idiom in icon_specs:
+            # Calculate point size correctly
+            if size == 167:  # 83.5pt @2x
+                size_in_points = 83.5
+            elif scale == "@1x":
+                size_in_points = size
+            elif scale == "@2x":
+                size_in_points = size // 2
+            elif scale == "@3x":
+                size_in_points = size // 3
+            else:
+                size_in_points = size
+
+            entry = {
+                "idiom": idiom,
+                "filename": filename,
+            }
+
+            # Add size field (except for marketing icon)
+            if idiom != "ios-marketing":
+                # Format size with .5 if needed
+                if isinstance(size_in_points, float):
+                    entry["size"] = f"{size_in_points}x{size_in_points}"
+                else:
+                    entry["size"] = f"{size_in_points}x{size_in_points}"
+                entry["scale"] = scale.replace("@", "").replace("x", "x")
+            else:
+                entry["size"] = "1024x1024"
+
+            contents["images"].append(entry)
+
+        contents_path = output_path / "Contents.json"
+        import json
+
+        contents_path.write_text(json.dumps(contents, indent=2), encoding="utf-8")
+
+    def generate_android(self) -> None:
+        """
+        Generate Android adaptive icon set.
+
+        Creates foreground and background layers for adaptive icons,
+        plus legacy icons for older Android versions.
+        Directory structure: android/res/mipmap-*/
+        """
+
+        output_path = self.output_dir / "android"
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Android density buckets with corresponding sizes
+        densities = [
+            ("mdpi", 48),  # 1x baseline
+            ("hdpi", 72),  # 1.5x
+            ("xhdpi", 96),  # 2x
+            ("xxhdpi", 144),  # 3x
+            ("xxxhdpi", 192),  # 4x
+        ]
+
+        # Google Play Store icon
+        play_store_size = 512
+        play_store_path = output_path / "playstore-icon.png"
+        play_store_icon = self.image.resize(
+            (play_store_size, play_store_size), Image.Resampling.LANCZOS
+        )
+        play_store_icon.save(play_store_path, "PNG")
+
+        # Generate adaptive icons for each density
+        for density_name, size in densities:
+            density_dir = output_path / "res" / f"mipmap-{density_name}"
+            density_dir.mkdir(parents=True, exist_ok=True)
+
+            # Resize image
+            resized = self.image.resize((size, size), Image.Resampling.LANCZOS)
+
+            # For adaptive icons, we need separate foreground and background
+            # Foreground: the actual icon content (with safe zone consideration)
+            # Background: can be solid color or extracted from image
+
+            # Create foreground (centered with padding for safe zone)
+            # Android adaptive icons have a safe zone of 66% (33% padding on each side)
+            safe_zone = int(size * 0.66)
+            offset = (size - safe_zone) // 2
+
+            # Extract center portion for foreground
+            foreground = resized.crop((offset, offset, offset + safe_zone, offset + safe_zone))
+            foreground = foreground.resize((size, size), Image.Resampling.LANCZOS)
+
+            # Create simple background (white by default, could be customized)
+            background = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+
+            # Save foreground and background
+            fg_path = density_dir / "ic_launcher_foreground.png"
+            bg_path = density_dir / "ic_launcher_background.png"
+
+            foreground.save(fg_path, "PNG")
+            background.save(bg_path, "PNG")
+
+            # Also save legacy icon (combined) for older Android versions
+            legacy_path = density_dir / "ic_launcher.png"
+            resized.save(legacy_path, "PNG")
+
+            # Round icon for Android 7.1+
+            round_path = density_dir / "ic_launcher_round.png"
+            resized.save(round_path, "PNG")
+
+        # Generate adaptive icon XML resources
+        res_xml_dir = output_path / "res" / "mipmap-anydpi-v26"
+        res_xml_dir.mkdir(parents=True, exist_ok=True)
+
+        # ic_launcher.xml
+        launcher_xml = """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>"""
+
+        launcher_path = res_xml_dir / "ic_launcher.xml"
+        launcher_path.write_text(launcher_xml, encoding="utf-8")
+
+        # ic_launcher_round.xml
+        launcher_round_xml = """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>"""
+
+        launcher_round_path = res_xml_dir / "ic_launcher_round.xml"
+        launcher_round_path.write_text(launcher_round_xml, encoding="utf-8")
+
+        # Generate AndroidManifest.xml snippet
+        manifest_snippet = """<!-- Add these lines to your AndroidManifest.xml -->
+<application
+    android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    ... >
+</application>"""
+
+        manifest_path = output_path / "AndroidManifest-snippet.xml"
+        manifest_path.write_text(manifest_snippet, encoding="utf-8")
+
+        # Generate README with instructions
+        readme_content = """# Android Icon Set
+
+This directory contains Android adaptive icons generated by Icoft.
+
+## Structure
+
+- `res/mipmap-*/`: Density-specific icon resources
+- `res/mipmap-anydpi-v26/`: Adaptive icon XML definitions (Android 8.0+)
+- `playstore-icon.png`: 512x512 icon for Google Play Store
+
+## Installation
+
+1. Copy the `res` directory to your Android project's `app/src/main/` directory
+2. Update your `AndroidManifest.xml` to reference the icons (see AndroidManifest-snippet.xml)
+3. Upload `playstore-icon.png` to Google Play Console
+
+## Notes
+
+- Adaptive icons require Android 8.0 (API 26) or higher
+- Legacy icons are included for backward compatibility
+- The foreground layer uses a 66% safe zone as recommended by Android guidelines
+"""
+
+        readme_path = output_path / "README.md"
+        readme_path.write_text(readme_content, encoding="utf-8")
 
     def _generate_svg(self, output_path: Path) -> None:
         """
