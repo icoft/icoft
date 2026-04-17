@@ -183,9 +183,7 @@ class ImageProcessor:
             return self
 
         # Find all pixels matching background color (both opaque and semi-transparent)
-        is_background = self._is_background_color(
-            img_array[:, :, :3], bg_color, tolerance
-        )
+        is_background = self._is_background_color(img_array[:, :, :3], bg_color, tolerance)
 
         # For semi-transparent regions (alpha <= 128), be more aggressive
         # They're likely AI artifacts and should be removed if they match background
@@ -255,9 +253,7 @@ class ImageProcessor:
 
             # Apply transparency
             alpha = img_array[:, :, 3]
-            is_background = self._is_background_color(
-                img_array[:, :, :3], bg_color, tolerance
-            )
+            is_background = self._is_background_color(img_array[:, :, :3], bg_color, tolerance)
             alpha[is_background] = 0
             img_array[:, :, 3] = alpha
 

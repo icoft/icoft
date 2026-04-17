@@ -46,7 +46,9 @@ class U2NetProcessor(ONNXProcessor):
 
         # Inference
         outputs = self.session.run(None, {self.input_name: input_tensor})
-        mask = outputs[0][0, 0]  # Get first batch, first channel (already in [0,1] range via sigmoid)
+        mask = outputs[0][
+            0, 0
+        ]  # Get first batch, first channel (already in [0,1] range via sigmoid)
 
         # Postprocess
         result_image = self._postprocess(

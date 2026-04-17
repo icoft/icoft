@@ -230,8 +230,12 @@ def main(
                 # User specified reference color - parse it
                 ref_color_tuple = processor._parse_color(ref_bg_color)
                 ref_color_array = np.array(ref_color_tuple)
-                console.print(f"[yellow]Step {step_num}:[/] Using specified reference color: {ref_bg_color}")
-                console.print(f"[green]✓[/green] Reference color parsed: {ref_color_array.astype(int)}")
+                console.print(
+                    f"[yellow]Step {step_num}:[/] Using specified reference color: {ref_bg_color}"
+                )
+                console.print(
+                    f"[green]✓[/green] Reference color parsed: {ref_color_array.astype(int)}"
+                )
                 step_num += 1
             elif bg_threshold != 0:
                 # Auto-detect from image (only if threshold is enabled)
@@ -251,7 +255,9 @@ def main(
                 # AI-based background removal
                 # Phase 1: AI-based background removal
                 backend_name = "RMBG-1.4" if ai_backend == "rmbg" else "U²-Net"
-                console.print(f"[yellow]Step {step_num}:[/] Removing background with AI ({backend_name})...")
+                console.print(
+                    f"[yellow]Step {step_num}:[/] Removing background with AI ({backend_name})..."
+                )
                 try:
                     if ai_backend == "rmbg":
                         processor.remove_background_ai(
@@ -276,9 +282,7 @@ def main(
                     console.print(
                         f"[yellow]Step {step_num}:[/] Applying color-based refinement (threshold={bg_threshold})..."
                     )
-                    processor.refine_transparency(
-                        bg_color=ref_color_array, tolerance=bg_threshold
-                    )
+                    processor.refine_transparency(bg_color=ref_color_array, tolerance=bg_threshold)
                     console.print(
                         "[green]✓[/green] Color-based refinement applied (handles both opaque and semi-transparent pixels)"
                     )
@@ -286,7 +290,9 @@ def main(
             else:
                 # Simple color-based background removal (-B flag)
                 if ref_color_array is not None:
-                    threshold = bg_threshold if bg_threshold != 0 else 10  # Default to 10 if just -B
+                    threshold = (
+                        bg_threshold if bg_threshold != 0 else 10
+                    )  # Default to 10 if just -B
                     console.print(f"[yellow]Step {step_num}:[/] Making background transparent...")
                     processor.make_background_transparent(
                         tolerance=threshold, ref_color=ref_color_array

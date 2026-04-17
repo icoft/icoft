@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "icoft"
 version = "0.5.2"
 description = "From AI Logo to Full-Platform App Icons - CLI Tool"
+keywords = ["icon", "app-icon", "logo", "svg", "image-processing", "cli", "generator", "platform-icons"]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
